@@ -21,19 +21,6 @@ spec:
         prometheus.io/port: "8080"
     spec:
       terminationGracePeriodSeconds: 10
-      initContainers:
-        - name: cluster
-          imagePullPolicy: IfNotPresent
-          image: 'busybox:1.32.0'
-          command:
-            - sh
-            - '-c'
-            - |
-              echo trying to contact stolon-sentinel-monitoring 8080
-              until nc -vzw 1 stolon-sentinel-monitoring 8080; do
-                echo "waiting for stolon cluster..."
-                sleep 2
-              done
 
       containers:
         - name: stolon-keeper
@@ -47,7 +34,12 @@ spec:
               export STKEEPER_UID="keeper${ADDR[-1]}"
               export POD_IP=$(hostname -i)
               export STKEEPER_PG_LISTEN_ADDRESS=$POD_IP
+              {{ if .Values.openshift.enabled }}
               stolon-keeper --data-dir /stolon-data
+              {{ else }}
+              chown stolon:stolon /stolon-data
+              exec gosu stolon stolon-keeper --data-dir /stolon-data
+              {{ end }}
           env:
             - name: POD_NAME
               valueFrom:

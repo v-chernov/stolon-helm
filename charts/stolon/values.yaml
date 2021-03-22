@@ -17,4 +17,8 @@ databases: {} # databases created after installation
   #  password: # if empty or undefined, will be generated random password (30 symbols)
 databases_creation_schedule: "5"
 
+openshift:
+  enabled: false
+
+
 postgres_password: ""  # if empty, will be generated random password (30 symbols)
