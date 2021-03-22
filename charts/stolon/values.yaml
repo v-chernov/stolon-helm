@@ -1,0 +1,20 @@
+postgres_replicas: 3
+proxy_replicas: 1
+sentinel_replicas: 1
+postgres_storage_size: 512Mi
+postgres_version: 12
+
+global:
+  postgres_version: 12
+  image_repo: ''
+  pgSettings:
+
+cluster_name: "cluster.local"
+
+databases: {} # databases created after installation
+  #keycloak:
+  #  name: keycloak
+  #  password: # if empty or undefined, will be generated random password (30 symbols)
+databases_creation_schedule: "5"
+
+postgres_password: ""  # if empty, will be generated random password (30 symbols)

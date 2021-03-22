@@ -1,0 +1,70 @@
+{{ if .Values.databases }}
+apiVersion: batch/v1beta1
+kind: CronJob
+metadata:
+  name: stolon-db-create
+  labels:
+    chart: {{ .Chart.Name }}-{{ .Chart.Version }}
+    heritage: {{ .Release.Service }}
+    release: {{ .Release.Name }}
+  namespace: {{ .Release.Name }}
+spec:
+  schedule: "*/{{ .Values.databases_creation_schedule }} * * * *"
+  jobTemplate:
+    spec:
+      template:
+        metadata:
+          labels:
+            name: stolon-db-create
+            stolon-cluster: {{ .Release.Name }}
+        spec:
+          restartPolicy: Never
+          initContainers:
+            - name: cluster
+              imagePullPolicy: IfNotPresent
+              image: 'busybox:1.32.0'
+              command:
+                - sh
+                - '-c'
+                - |
+                  echo trying to contact stolon-proxy-service 5432
+                  until nc -vzw 1 stolon-proxy-service 5432; do
+                    echo "waiting for stolon cluster..."
+                    sleep 2
+                  done
+
+            - name: pg-check
+              image: {{ .Values.global.image_repo }}sorintlab/stolon:master-pg{{ .Values.global.postgres_version }}
+              command:
+                - "/bin/bash"
+                - "-ec"
+                - |
+                  export ROOT_PASSWORD=$(cat /etc/secrets/stolon/password)
+                  until psql postgresql://stolon:${ROOT_PASSWORD}@stolon-proxy-service:5432/postgres -c "SELECT datname FROM pg_database;"; do
+                    echo "waiting for stolon cluster..."
+                    sleep 2
+                  done
+
+              volumeMounts:
+                - mountPath: /etc/secrets/stolon
+                  name: stolon
+
+          containers:
+            - name: stolon-db-create
+              image: {{ .Values.global.image_repo }}sorintlab/stolon:master-pg{{ .Values.global.postgres_version }}
+              command:
+                - "/etc/databases/script.sh"
+              volumeMounts:
+                - mountPath: /etc/secrets/stolon
+                  name: stolon
+                - mountPath: /etc/databases
+                  name: databases
+          volumes:
+            - name: stolon
+              secret:
+                secretName: stolon
+            - name: databases
+              configMap:
+                name: databases
+                defaultMode: 0755
+{{ end }}

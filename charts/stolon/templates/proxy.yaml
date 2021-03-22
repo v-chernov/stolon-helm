@@ -1,0 +1,66 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: stolon-proxy
+  namespace: {{ .Release.Name }}
+
+spec:
+  replicas: {{ .Values.proxy_replicas }}
+  selector:
+    matchLabels:
+      component: stolon-proxy
+      stolon-cluster: {{ .Release.Name }}
+  template:
+    metadata:
+      labels:
+        component: stolon-proxy
+        stolon-cluster: {{ .Release.Name }}
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8080"
+    spec:
+      initContainers:
+        - name: cluster
+          imagePullPolicy: IfNotPresent
+          image: 'busybox:1.32.0'
+          command:
+            - sh
+            - '-c'
+            - |
+              echo trying to contact stolon-sentinel-monitoring 8080
+              until nc -vzw 1 stolon-sentinel-monitoring 8080; do
+                echo "waiting for stolon cluster..."
+                sleep 2
+              done
+      containers:
+        - name: stolon-proxy
+          image: {{ .Values.global.image_repo }}sorintlab/stolon:master-pg{{ .Values.global.postgres_version }}
+          command:
+            - "/bin/bash"
+            - "-ec"
+            - stolon-proxy
+          env:
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: STPROXY_CLUSTER_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.labels['stolon-cluster']
+            - name: STPROXY_STORE_BACKEND
+              value: "kubernetes"
+            - name: STPROXY_KUBE_RESOURCE_KIND
+              value: "configmap"
+            - name: STPROXY_LISTEN_ADDRESS
+              value: "0.0.0.0"
+            - name: STPROXY_METRICS_LISTEN_ADDRESS
+              value: "0.0.0.0:8080"
+          ports:
+            - containerPort: 5432
+            - containerPort: 8080
+          readinessProbe:
+            tcpSocket:
+              port: 5432
+            initialDelaySeconds: 10
+            timeoutSeconds: 5

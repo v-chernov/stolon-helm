@@ -1,0 +1,21 @@
+### stolon helm chart installed ###
+PostgreSQL instances (keeper) replicas: {{ .Values.postgres_replicas }}
+Cluster condition watcher (sentinel) replicas: {{ .Values.sentinel_replicas }}
+Proxy replicas: {{ .Values.proxy_replicas }}
+
+Connection string example (inside your namespace):
+psql://stolon:PASSWORD@stolon-proxy-service:5432/postgres
+Connection string example (outside your namespace. please check your network policies):
+psql://stolon:PASSWORD@stolon-proxy-service.{{ .Release.Name }}.svc.{{ .Values.cluster_name }}:5432/postgres
+
+Get your root password for stolon user:
+kubectl get secret -n {{ .Release.Name }} stolon -o jsonpath='{.data.password}'
+
+{{ if .Values.databases }}
+Created databases and users:
+{{ range $database := .Values.databases }}
+  {{ $database.name }}{{ if $database.password }}{{ $database.password }}{{ else }}<random password>{{ end }}
+{{ end }}
+You can get all SQL code about databases and users from ConfigMap
+kubectl get configmap -n {{ .Release.Name }} databases -o jsonpath='{.data}'
+{{ end }}

@@ -1,0 +1,38 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: stolon-init
+  labels:
+    chart: {{ .Chart.Name }}-{{ .Chart.Version }}
+    heritage: {{ .Release.Service }}
+    release: {{ .Release.Name }}
+  namespace: {{ .Release.Name }}
+spec:
+  template:
+    metadata:
+      labels:
+        component: stolon-init
+        stolon-cluster: kube-stolon
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: stolon-init
+          image: {{ .Values.global.image_repo }}sorintlab/stolon:master-pg{{ .Values.global.postgres_version }}
+          command:
+            - "stolonctl"
+            - "init"
+            - "--cluster-name={{ .Release.Name }}"
+            - "--store-backend=kubernetes"
+            - "--kube-resource-kind=configmap"
+            - "--log-level=debug"
+            - "-f"
+            - "/srv/stolon-init/init.json"
+            - "-y"
+          volumeMounts:
+            - name: init
+              mountPath: "/srv/stolon-init"
+              readOnly: true
+      volumes:
+        - name: init
+          configMap:
+            name: init

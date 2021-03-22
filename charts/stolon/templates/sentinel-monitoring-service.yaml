@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: stolon-sentinel-monitoring
+  namespace: {{ .Release.Name }}
+
+spec:
+  ports:
+    - port: 8080
+      targetPort: 8080
+  selector:
+    component: stolon-sentinel
+    stolon-cluster: {{ .Release.Name }}
