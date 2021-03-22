@@ -34,7 +34,6 @@ spec:
                 echo "waiting for stolon cluster..."
                 sleep 2
               done
-
       containers:
         - name: stolon-keeper
           image: {{ .Values.global.image_repo }}sorintlab/stolon:master-pg{{ .Values.global.postgres_version }}
@@ -47,7 +46,12 @@ spec:
               export STKEEPER_UID="keeper${ADDR[-1]}"
               export POD_IP=$(hostname -i)
               export STKEEPER_PG_LISTEN_ADDRESS=$POD_IP
+              {{ if .Values.openshift.enabled }}
               stolon-keeper --data-dir /stolon-data
+              {{ else }}
+              chown stolon:stolon /stolon-data
+              exec gosu stolon stolon-keeper --data-dir /stolon-data
+              {{ end }}
           env:
             - name: POD_NAME
               valueFrom:
