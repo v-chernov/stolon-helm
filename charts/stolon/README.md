@@ -25,6 +25,9 @@ databases: {} # databases created after installation. CronJob will overwrite all
   #  password: # if empty or undefined, will be generated random password (30 symbols)
 databases_creation_schedule: "5"
 
+openshift:
+  enabled: false # if True, OpenShift/OKD support will enabled (non-root execution etc)
+
 postgres_password: ""  # if empty, will be generated random password (30 symbols)
 
 ```
