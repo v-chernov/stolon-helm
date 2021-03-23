@@ -14,7 +14,8 @@ postgres_storage_size: 512Mi
 postgres_version: 12 # major version of PostgreSQL
 
 global:
-  postgres_version: 12
+  postgres_version: 12 # major PostgreSQL version supported by Stolon
+  busybox_tag: 1.32.0 # busybox image tag
   image_repo: ''
   pgSettings:
 
@@ -23,11 +24,10 @@ databases: {} # databases created after installation. CronJob will overwrite all
   #keycloak:
   #  name: keycloak
   #  password: # if empty or undefined, will be generated random password (30 symbols)
-databases_creation_schedule: "5"
+databases_creation_schedule: "*/5 * * * *" # Cron string
 
 openshift:
   enabled: false # if True, OpenShift/OKD support will enabled (non-root execution etc)
 
 postgres_password: ""  # if empty, will be generated random password (30 symbols)
-
 ```

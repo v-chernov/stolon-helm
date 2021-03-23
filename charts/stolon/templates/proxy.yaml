@@ -22,7 +22,7 @@ spec:
       initContainers:
         - name: cluster
           imagePullPolicy: IfNotPresent
-          image: 'busybox:1.32.0'
+          image: {{ if .Values.global.image_repo }}{{ .Values.global.image_repo }}/{{ end }}busybox:{{ .Values.global.busybox_tag }}
           command:
             - sh
             - '-c'
@@ -34,7 +34,7 @@ spec:
               done
       containers:
         - name: stolon-proxy
-          image: {{ .Values.global.image_repo }}sorintlab/stolon:master-pg{{ .Values.global.postgres_version }}
+          image: {{ if .Values.global.image_repo }}{{ .Values.global.image_repo }}/{{ end }}sorintlab/stolon:master-pg{{ .Values.global.postgres_version }}
           command:
             - "/bin/bash"
             - "-ec"

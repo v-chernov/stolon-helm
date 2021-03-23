@@ -6,6 +6,7 @@ postgres_version: 12
 
 global:
   postgres_version: 12
+  busybox_tag: 1.32.0
   image_repo: ''
   pgSettings:
 
@@ -15,7 +16,7 @@ databases: {} # databases created after installation
   #keycloak:
   #  name: keycloak
   #  password: # if empty or undefined, will be generated random password (30 symbols)
-databases_creation_schedule: "5"
+databases_creation_schedule: "*/5 * * * *"
 
 openshift:
   enabled: false

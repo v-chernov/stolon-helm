@@ -20,7 +20,7 @@ spec:
     spec:
       containers:
         - name: stolon-sentinel
-          image: {{ .Values.global.image_repo }}sorintlab/stolon:master-pg{{ .Values.global.postgres_version }}
+          image: {{ if .Values.global.image_repo }}{{ .Values.global.image_repo }}/{{ end }}sorintlab/stolon:master-pg{{ .Values.global.postgres_version }}
           command:
             - stolon-sentinel
           env:

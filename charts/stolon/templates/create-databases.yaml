@@ -9,7 +9,7 @@ metadata:
     release: {{ .Release.Name }}
   namespace: {{ .Release.Name }}
 spec:
-  schedule: "*/{{ .Values.databases_creation_schedule }} * * * *"
+  schedule: "{{ .Values.databases_creation_schedule }}"
   jobTemplate:
     spec:
       template:
@@ -34,7 +34,7 @@ spec:
                   done
 
             - name: pg-check
-              image: {{ .Values.global.image_repo }}sorintlab/stolon:master-pg{{ .Values.global.postgres_version }}
+              image: {{ if .Values.global.image_repo }}{{ .Values.global.image_repo }}/{{ end }}sorintlab/stolon:master-pg{{ .Values.global.postgres_version }}
               command:
                 - "/bin/bash"
                 - "-ec"
@@ -51,7 +51,7 @@ spec:
 
           containers:
             - name: stolon-db-create
-              image: {{ .Values.global.image_repo }}sorintlab/stolon:master-pg{{ .Values.global.postgres_version }}
+              image: {{ if .Values.global.image_repo }}{{ .Values.global.image_repo }}/{{ end }}sorintlab/stolon:master-pg{{ .Values.global.postgres_version }}
               command:
                 - "/etc/databases/script.sh"
               volumeMounts:
