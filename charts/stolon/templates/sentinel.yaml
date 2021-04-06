@@ -1,25 +1,30 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: stolon-sentinel
-  namespace: {{ .Release.Name }}
+  name: {{ .Release.Name }}-sentinel
+  namespace: {{ .Release.Namespace }}
 spec:
   replicas: {{ .Values.sentinel_replicas }}
   selector:
     matchLabels:
-      component: stolon-sentinel
-      stolon-cluster: {{ .Release.Name }}
+      component: {{ .Release.Name }}-sentinel
+      stolon-cluster: {{ .Release.Name }}-{{ .Release.Namespace }}
   template:
     metadata:
       labels:
-        component: stolon-sentinel
-        stolon-cluster: {{ .Release.Name }}
+        component: {{ .Release.Name }}-sentinel
+        stolon-cluster: {{ .Release.Name }}-{{ .Release.Namespace }}
       annotations:
         prometheus.io/scrape: "true"
         prometheus.io/port: "8080"
     spec:
+      {{ if .Values.global.serviceAccount.create }}serviceAccountName: {{ .Release.Name }}{{ else }}serviceAccountName: default{{ end }}
+      {{ if .Values.global.imagePullSecrets }}imagePullSecrets:
+        {{ range .Values.global.imagePullSecrets }}
+          - {{ . | toYaml}}
+        {{ end }}{{ end }}
       containers:
-        - name: stolon-sentinel
+        - name: {{ .Release.Name }}-sentinel
           image: {{ if .Values.global.image_repo }}{{ .Values.global.image_repo }}/{{ end }}sorintlab/stolon:master-pg{{ .Values.global.postgres_version }}
           command:
             - stolon-sentinel

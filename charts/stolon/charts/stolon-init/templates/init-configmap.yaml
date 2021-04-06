@@ -3,12 +3,12 @@ kind: ConfigMap
 metadata:
   annotations:
     "helm.sh/hook": "pre-install"
-  name: init
+  name: {{ .Release.Name }}-init
   labels:
     chart: {{ .Chart.Name }}-{{ .Chart.Version }}
     heritage: {{ .Release.Service }}
     release: {{ .Release.Name }}
-  namespace: {{ .Release.Name }}
+  namespace: {{ .Release.Namespace }}
 data:
   init.json: |
     {"initMode": "new"

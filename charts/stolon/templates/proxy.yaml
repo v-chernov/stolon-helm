@@ -1,24 +1,29 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: stolon-proxy
-  namespace: {{ .Release.Name }}
+  name: {{ .Release.Name }}-proxy
+  namespace: {{ .Release.Namespace }}
 
 spec:
   replicas: {{ .Values.proxy_replicas }}
   selector:
     matchLabels:
-      component: stolon-proxy
-      stolon-cluster: {{ .Release.Name }}
+      component: {{ .Release.Name }}-proxy
+      stolon-cluster: {{ .Release.Name }}-{{ .Release.Namespace }}
   template:
     metadata:
       labels:
-        component: stolon-proxy
-        stolon-cluster: {{ .Release.Name }}
+        component: {{ .Release.Name }}-proxy
+        stolon-cluster: {{ .Release.Name }}-{{ .Release.Namespace }}
       annotations:
         prometheus.io/scrape: "true"
         prometheus.io/port: "8080"
     spec:
+      {{ if .Values.global.serviceAccount.create }}serviceAccountName: {{ .Release.Name }}{{ else }}serviceAccountName: default{{ end }}
+      {{ if .Values.global.imagePullSecrets }}imagePullSecrets:
+        {{ range .Values.global.imagePullSecrets }}
+          - {{ . | toYaml}}
+        {{ end }}{{ end }}
       initContainers:
         - name: cluster
           imagePullPolicy: IfNotPresent
@@ -33,7 +38,7 @@ spec:
                 sleep 2
               done
       containers:
-        - name: stolon-proxy
+        - name: {{ .Release.Name }}-proxy
           image: {{ if .Values.global.image_repo }}{{ .Values.global.image_repo }}/{{ end }}sorintlab/stolon:master-pg{{ .Values.global.postgres_version }}
           command:
             - "/bin/bash"

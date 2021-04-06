@@ -6,22 +6,27 @@ metadata:
     chart: {{ .Chart.Name }}-{{ .Chart.Version }}
     heritage: {{ .Release.Service }}
     release: {{ .Release.Name }}
-  namespace: {{ .Release.Name }}
+  namespace: {{ .Release.Namespace }}
 spec:
   template:
     metadata:
       labels:
-        component: stolon-init
-        stolon-cluster: kube-stolon
+        component: {{ .Release.Name }}-init
+        stolon-cluster: {{ .Release.Name }}-{{ .Release.Namespace }}
     spec:
+      {{ if .Values.global.serviceAccount.create }}serviceAccountName: {{ .Release.Name }}{{ else }}serviceAccountName: default{{ end }}
+      {{ if .Values.global.imagePullSecrets }}imagePullSecrets:
+        {{ range .Values.global.imagePullSecrets }}
+          - {{ . | toYaml}}
+        {{ end }}{{ end }}
       restartPolicy: Never
       containers:
-        - name: stolon-init
+        - name: {{ .Release.Name }}-init
           image: {{ if .Values.global.image_repo }}{{ .Values.global.image_repo }}/{{ end }}sorintlab/stolon:master-pg{{ .Values.global.postgres_version }}
           command:
             - "stolonctl"
             - "init"
-            - "--cluster-name={{ .Release.Name }}"
+            - "--cluster-name={{ .Release.Name }}-{{ .Release.Namespace }}"
             - "--store-backend=kubernetes"
             - "--kube-resource-kind=configmap"
             - "--log-level=debug"
@@ -29,10 +34,10 @@ spec:
             - "/srv/stolon-init/init.json"
             - "-y"
           volumeMounts:
-            - name: init
+            - name: {{ .Release.Name }}-init
               mountPath: "/srv/stolon-init"
               readOnly: true
       volumes:
-        - name: init
+        - name: {{ .Release.Name }}-init
           configMap:
-            name: init
+            name: {{ .Release.Name }}-init

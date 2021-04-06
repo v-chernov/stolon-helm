@@ -1,13 +1,13 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: stolon-proxy-service
-  namespace: {{ .Release.Name }}
+  name: {{ .Release.Name }}-proxy-service
+  namespace: {{ .Release.Namespace }}
 
 spec:
   ports:
     - port: 5432
       targetPort: 5432
   selector:
-    component: stolon-proxy
-    stolon-cluster: {{ .Release.Name }}
+    component: {{ .Release.Name }}-proxy
+    stolon-cluster: {{ .Release.Name }}-{{ .Release.Namespace }}
