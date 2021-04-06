@@ -17,6 +17,9 @@ global:
   postgres_version: 12 # major PostgreSQL version supported by Stolon
   busybox_tag: 1.32.0 # busybox image tag
   image_repo: ''
+  imagePullSecrets: [] # list of ImagePullSecrets
+  serviceAccount:
+    create: false # create serviceAccount, use default if not
   pgSettings:
 
 databases: {} # databases created after installation. CronJob will overwrite all your manual settings like
