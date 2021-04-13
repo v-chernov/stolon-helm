@@ -2,6 +2,19 @@ apiVersion: v1
 entries:
   stolon:
   - apiVersion: v2
+    created: "2021-04-13T16:03:54.153913033Z"
+    dependencies:
+    - name: stolon-init
+      repository: ""
+      version: 0.2.2
+    description: stolon
+    digest: 9923c5d6faa54924bf83d2b53369ce186f14f0b60308a187d978a44ad6fd91b6
+    name: stolon
+    type: application
+    urls:
+    - https://github.com/v-chernov/stolon-helm/releases/download/stolon-0.2.5/stolon-0.2.5.tgz
+    version: 0.2.5
+  - apiVersion: v2
     created: "2021-04-13T14:08:14.848592672Z"
     dependencies:
     - name: stolon-init
@@ -92,4 +105,4 @@ entries:
     urls:
     - https://github.com/v-chernov/stolon-helm/releases/download/stolon-0.1.0/stolon-0.1.0.tgz
     version: 0.1.0
-generated: "2021-04-13T14:08:14.848646471Z"
+generated: "2021-04-13T16:03:54.153944035Z"
