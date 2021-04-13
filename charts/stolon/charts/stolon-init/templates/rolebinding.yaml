@@ -14,8 +14,13 @@ roleRef:
   name: {{ .Release.Name }}
 subjects:
 {{ if .Values.global.serviceAccount.create }}
+{{ if .Values.global.serviceAccount.name }}
+  - kind: ServiceAccount
+    name: {{ .Values.global.serviceAccount.name }}
+{{ else }}
   - kind: ServiceAccount
     name: {{ .Release.Name }}
+{{ end }}
 {{ else }}
   - kind: ServiceAccount
     name: default

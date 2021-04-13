@@ -16,6 +16,7 @@ global:
   pgSettings:
   serviceAccount:
     create: false
+    #name: default
 
 cluster_name: "cluster.local"
 
