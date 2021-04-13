@@ -62,9 +62,9 @@ spec:
           volumes:
             - name: stolon
               secret:
-                secretName: stolon
+                secretName: {{ .Release.Name }}
             - name: databases
               configMap:
-                name: databases
+                name: {{ .Release.Name }}-databases
                 defaultMode: 0755
 {{ end }}

@@ -8,7 +8,6 @@
       "postgres_replicas",
       "proxy_replicas",
       "sentinel_replicas",
-      "postgres_storage_size",
       "global"
    ],
    "properties":{
@@ -29,12 +28,6 @@
          "title":"number of sentinel replicas",
          "type":"integer",
          "default":1
-      },
-      "postgres_storage_size":{
-         "$id":"#root/postgres_storage_size",
-         "title":"Postgres storage size",
-         "type":"string",
-         "default":"512Mi"
       },
       "global":{
          "$id":"#root/global",
