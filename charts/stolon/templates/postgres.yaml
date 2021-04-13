@@ -99,7 +99,10 @@ spec:
           stolon-cluster: {{ .Release.Name }}-{{ .Release.Namespace }}
         name: {{ .Release.Name }}-data
       spec:
+        {{ if .Values.postgres_storage.storageClassName }}
+        storageClassName: {{ .Values.postgres_storage.storageClassName }}
+        {{ end }}
         accessModes: [ "ReadWriteOnce" ]
         resources:
           requests:
-            storage: {{ .Values.postgres_storage_size }}
+            storage: {{ .Values.postgres_storage.size }}

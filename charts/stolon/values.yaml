@@ -1,7 +1,10 @@
 postgres_replicas: 3
 proxy_replicas: 1
 sentinel_replicas: 1
-postgres_storage_size: 512Mi
+postgres_storage:
+  size: 512Mi
+  storageClassName: ""
+
 
 global:
   postgres_version: 12

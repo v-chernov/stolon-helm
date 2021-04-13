@@ -22,7 +22,7 @@ spec:
           initContainers:
             - name: cluster
               imagePullPolicy: IfNotPresent
-              image: 'busybox:1.32.0'
+              image: {{ if .Values.global.image_repo }}{{ .Values.global.image_repo }}/{{ end }}busybox:{{ .Values.global.busybox_tag }}
               command:
                 - sh
                 - '-c'
