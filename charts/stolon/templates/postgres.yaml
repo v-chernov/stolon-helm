@@ -38,29 +38,52 @@ spec:
                 echo "waiting for stolon cluster..."
                 sleep 2
               done
+
+        - name: force-permissions
+          imagePullPolicy: IfNotPresent
+          image: {{ if .Values.global.image_repo }}{{ .Values.global.image_repo }}/{{ end }}busybox:{{ .Values.global.busybox_tag }}
+          command:
+            - sh
+            - '-c'
+            - |
+              if [ -d ${STKEEPER_DATA_DIR}/postgres ]
+                then
+                  echo FIX DATABASE DIR ${STKEEPER_DATA_DIR} PERMISSIONS
+                  chmod 750 ${STKEEPER_DATA_DIR}/postgres
+                  chmod -s ${STKEEPER_DATA_DIR}/postgres
+                else
+                  echo INIT DATABASE IN ${STKEEPER_DATA_DIR}
+                  {{ if not .Values.openshift.enabled }}chown stolon:stolon ${STKEEPER_DATA_DIR}{{ end }}
+              fi
+          env:
+            - name: STKEEPER_DATA_DIR
+              value: "/stolon-data"
+          volumeMounts:
+            - mountPath: /stolon-data
+              name: {{ .Release.Name }}-data
+
       containers:
         - name: {{ .Release.Name }}-keeper
           image: {{ if .Values.global.image_repo }}{{ .Values.global.image_repo }}/{{ end }}sorintlab/stolon:master-pg{{ .Values.global.postgres_version }}
           command:
             - "/bin/bash"
             - "-ec"
-            - |
-              # Generate our keeper uid using the pod index
-              IFS='-' read -ra ADDR <<< "$(hostname)"
-              export STKEEPER_UID="keeper${ADDR[-1]}"
-              export POD_IP=$(hostname -i)
-              export STKEEPER_PG_LISTEN_ADDRESS=$POD_IP
-              {{ if .Values.openshift.enabled }}
-              stolon-keeper --data-dir /stolon-data
-              {{ else }}
-              chown stolon:stolon /stolon-data
-              exec gosu stolon stolon-keeper --data-dir /stolon-data
-              {{ end }}
+            - "{{ if not .Values.openshift.enabled }}exec gosu stolon {{ end }}stolon-keeper --uid ${POD_NAME##*keeper-}"
           env:
+            - name: STKEEPER_DATA_DIR
+              value: "/stolon-data"
             - name: POD_NAME
               valueFrom:
                 fieldRef:
                   fieldPath: metadata.name
+            - name: POD_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
+            - name: STKEEPER_PG_LISTEN_ADDRESS
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
             - name: STKEEPER_CLUSTER_NAME
               valueFrom:
                 fieldRef:
@@ -87,6 +110,22 @@ spec:
               name: {{ .Release.Name }}-data
             - mountPath: /etc/secrets/stolon
               name: {{ .Release.Name }}
+          startupProbe:
+            exec:
+              command:
+                - "/bin/bash"
+                - "-ec"
+                - "psql postgresql://stolon:$(cat ${STKEEPER_PG_SU_PASSWORDFILE})@${POD_IP}:5432/postgres -c 'SELECT datname from pg_database'"
+            failureThreshold: 60
+            periodSeconds: 2
+          livenessProbe:
+            exec:
+              command:
+                - "/bin/bash"
+                - "-ec"
+                - "psql postgresql://stolon:$(cat ${STKEEPER_PG_SU_PASSWORDFILE})@${POD_IP}:5432/postgres -c 'SELECT datname from pg_database'"
+            periodSeconds: 10
+            failureThreshold: 2
       volumes:
         - name: {{ .Release.Name }}
           secret:
