@@ -26,7 +26,7 @@ databases: {} # databases created after installation
   #keycloak:
   #  name: keycloak
   #  password: # if empty or undefined, will be generated random password (30 symbols)
-databases_creation_schedule: "*/5 * * * *"
+databases_creation_schedule: "*/2 * * * *"
 
 openshift:
   enabled: false

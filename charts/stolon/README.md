@@ -20,6 +20,8 @@ global:
   imagePullSecrets: [] # list of ImagePullSecrets
   serviceAccount:
     create: false # create serviceAccount, use default if not
+  rbac:
+    create: false # create Role and RBAC
   pgSettings:
 
 databases: {} # databases created after installation. CronJob will overwrite all your manual settings like
@@ -27,7 +29,7 @@ databases: {} # databases created after installation. CronJob will overwrite all
   #keycloak:
   #  name: keycloak
   #  password: # if empty or undefined, will be generated random password (30 symbols)
-databases_creation_schedule: "*/5 * * * *" # Cron string
+databases_creation_schedule: "*/2 * * * *" # Cron string
 
 openshift:
   enabled: false # if True, OpenShift/OKD support will enabled (non-root execution etc)

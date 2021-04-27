@@ -20,7 +20,7 @@ spec:
         prometheus.io/scrape: "true"
         prometheus.io/port: "8080"
     spec:
-      {{ if .Values.global.serviceAccount.create }}serviceAccountName: {{ .Release.Name }}{{ else }}serviceAccountName: default{{ end }}
+      {{ if .Values.global.serviceAccount.name }}serviceAccountName: {{ .Values.global.serviceAccount.name }}{{ else }}serviceAccountName: default{{ end }}
       {{ if .Values.global.imagePullSecrets }}imagePullSecrets:
         {{ range .Values.global.imagePullSecrets }}
           - {{ . | toYaml}}
@@ -54,6 +54,8 @@ spec:
                 else
                   echo INIT DATABASE IN ${STKEEPER_DATA_DIR}
                   {{ if not .Values.openshift.enabled }}chown stolon:stolon ${STKEEPER_DATA_DIR}{{ end }}
+                  echo BACKUP INITIAL ROOT PASSWORD
+                  cp /etc/secrets/stolon/password ${STKEEPER_DATA_DIR}/password
               fi
           env:
             - name: STKEEPER_DATA_DIR
@@ -61,6 +63,8 @@ spec:
           volumeMounts:
             - mountPath: /stolon-data
               name: {{ .Release.Name }}-data
+            - mountPath: /etc/secrets/stolon
+              name: {{ .Release.Name }}
 
       containers:
         - name: {{ .Release.Name }}-keeper
@@ -99,7 +103,7 @@ spec:
             - name: STKEEPER_PG_SU_USERNAME
               value: "stolon"
             - name: STKEEPER_PG_SU_PASSWORDFILE
-              value: "/etc/secrets/stolon/password"
+              value: "/stolon-data/password"
             - name: STKEEPER_METRICS_LISTEN_ADDRESS
               value: "0.0.0.0:8080"
           ports:
@@ -113,9 +117,16 @@ spec:
           startupProbe:
             exec:
               command:
-                - "/bin/bash"
-                - "-ec"
-                - "psql postgresql://stolon:$(cat ${STKEEPER_PG_SU_PASSWORDFILE})@${POD_IP}:5432/postgres -c 'SELECT datname from pg_database'"
+                - bash
+                - '-c'
+                - |
+                  export ROOT_PASSWORD=$(cat /etc/secrets/stolon/password) \
+                  && export CURRENT_ROOT_PASSWORD=$(cat ${STKEEPER_DATA_DIR}/password) \
+                  && psql postgresql://stolon:${CURRENT_ROOT_PASSWORD}@${POD_IP}:5432/postgres -c "ALTER USER stolon WITH PASSWORD '${ROOT_PASSWORD}'" \
+                  && if [ ${ROOT_PASSWORD} == ${CURRENT_ROOT_PASSWORD} ]
+                    then exit 0
+                    else cp /etc/secrets/stolon/password ${STKEEPER_DATA_DIR}/password && kill 1
+                  fi
             failureThreshold: 60
             periodSeconds: 2
           livenessProbe:
