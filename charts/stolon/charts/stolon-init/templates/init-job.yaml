@@ -14,7 +14,7 @@ spec:
         component: {{ .Release.Name }}-init
         stolon-cluster: {{ .Release.Name }}-{{ .Release.Namespace }}
     spec:
-      {{ if .Values.global.serviceAccount.create }}serviceAccountName: {{ .Release.Name }}{{ else }}serviceAccountName: default{{ end }}
+      {{ if .Values.global.serviceAccount.name }}serviceAccountName: {{ Values.global.serviceAccount.name }}{{ else }}serviceAccountName: default{{ end }}
       {{ if .Values.global.imagePullSecrets }}imagePullSecrets:
         {{ range .Values.global.imagePullSecrets }}
           - {{ . | toYaml}}
