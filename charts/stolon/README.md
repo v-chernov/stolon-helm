@@ -10,8 +10,11 @@ Created from examples from an official repo https://github.com/sorintlab/stolon
 postgres_replicas: 3 # number of keeper (PostgreSQL + Kubernetes API interaction module) instances
 proxy_replicas: 1 # number of cluster proxy instances
 sentinel_replicas: 1 # number of sentinel (Kubernetes healthcheck module) instances
-postgres_storage_size: 512Mi
 postgres_version: 12 # major version of PostgreSQL
+
+persistence:
+  # storageClass: "-"
+  size: 512Mi
 
 global:
   postgres_version: 12 # major PostgreSQL version supported by Stolon
