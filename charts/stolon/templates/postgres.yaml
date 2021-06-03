@@ -1,19 +1,19 @@
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
-  name: stolon-keeper
+  name: {{ .Release.Name }}-keeper
   namespace: {{ .Release.Namespace }}
 spec:
   serviceName: {{ .Release.Name }}-keeper
   replicas: {{ .Values.postgres_replicas }}
   selector:
     matchLabels:
-      component: {{ .Release.Name }}-keeper
+      component: stolon-keeper
       stolon-cluster: {{ .Release.Name }}-{{ .Release.Namespace }}
   template:
     metadata:
       labels:
-        component: {{ .Release.Name }}-keeper
+        component: stolon-keeper
         stolon-cluster: {{ .Release.Name }}-{{ .Release.Namespace }}
       annotations:
         pod.alpha.kubernetes.io/initialized: "true"
@@ -73,7 +73,7 @@ spec:
               name: {{ .Release.Name }}
 
       containers:
-        - name: {{ .Release.Name }}-keeper
+        - name: keeper
           image: {{ if .Values.global.image_repo }}{{ .Values.global.image_repo }}/{{ end }}sorintlab/stolon:master-pg{{ .Values.global.postgres_version }}
           command:
             - "/bin/bash"
@@ -112,6 +112,16 @@ spec:
               value: "/stolon-data/password"
             - name: STKEEPER_METRICS_LISTEN_ADDRESS
               value: "0.0.0.0:8080"
+
+            - name: STOLONCTL_CLUSTER_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.labels['stolon-cluster']
+            - name: STOLONCTL_STORE_BACKEND
+              value: "kubernetes"
+            - name: STOLONCTL_KUBE_RESOURCE_KIND
+              value: "configmap"
+
           ports:
             - containerPort: 5432
             - containerPort: 8080
@@ -157,7 +167,7 @@ spec:
   volumeClaimTemplates:
     - metadata:
         labels:
-          component: {{ .Release.Name }}-keeper
+          component: stolon-keeper
           stolon-cluster: {{ .Release.Name }}-{{ .Release.Namespace }}
         name: {{ .Release.Name }}-data
       spec:

@@ -9,5 +9,5 @@ spec:
     - port: 5432
       targetPort: 5432
   selector:
-    component: {{ .Release.Name }}-proxy
+    component: stolon-proxy
     stolon-cluster: {{ .Release.Name }}-{{ .Release.Namespace }}
