@@ -11,6 +11,9 @@ psql postgresql://stolon:PASSWORD@stolon-proxy-service.{{ .Release.Name }}.svc.{
 Get your root password for stolon user:
 kubectl get secret -n {{ .Release.Name }} stolon -o jsonpath='{.data.password}'
 
+Get password for repluser:
+kubectl get secret -n {{ .Release.Name }} stolon -o jsonpath='{.data.replpassword}'
+
 {{ if .Values.databases }}
 Created databases and users:
 {{ range $database := .Values.databases }}

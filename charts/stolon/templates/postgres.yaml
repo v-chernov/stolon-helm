@@ -52,10 +52,16 @@ spec:
                   chmod 750 ${STKEEPER_DATA_DIR}/postgres
                   chmod -s ${STKEEPER_DATA_DIR}/postgres
                 else
-                  echo INIT DATABASE IN ${STKEEPER_DATA_DIR}
+                  echo DATABASE IN ${STKEEPER_DATA_DIR} WILL BE INITIALIZED
                   {{ if not .Values.openshift.enabled }}chown stolon:stolon ${STKEEPER_DATA_DIR}{{ end }}
-                  echo BACKUP INITIAL ROOT PASSWORD
+              fi
+              if [ -f ${STKEEPER_DATA_DIR}/password ]
+                then
+                  echo ROOT PASSWORD FILE ${STKEEPER_DATA_DIR}/password EXISTS
+                else
+                  echo ROOT PASSWORD FILE ${STKEEPER_DATA_DIR}/password NOT EXISTS
                   cp /etc/secrets/stolon/password ${STKEEPER_DATA_DIR}/password
+                  chmod 600 ${STKEEPER_DATA_DIR}/password
               fi
           env:
             - name: STKEEPER_DATA_DIR
@@ -98,8 +104,8 @@ spec:
               value: "configmap"
             - name: STKEEPER_PG_REPL_USERNAME
               value: "repluser"
-            - name: STKEEPER_PG_REPL_PASSWORD
-              value: "replpassword"
+            - name: STKEEPER_PG_REPL_PASSWORDFILE
+              value: "/etc/secrets/stolon/replpassword"
             - name: STKEEPER_PG_SU_USERNAME
               value: "stolon"
             - name: STKEEPER_PG_SU_PASSWORDFILE
@@ -122,10 +128,16 @@ spec:
                 - |
                   export ROOT_PASSWORD=$(cat /etc/secrets/stolon/password) \
                   && export CURRENT_ROOT_PASSWORD=$(cat ${STKEEPER_DATA_DIR}/password) \
-                  && psql postgresql://stolon:${CURRENT_ROOT_PASSWORD}@${POD_IP}:5432/postgres -c "ALTER USER stolon WITH PASSWORD '${ROOT_PASSWORD}'" \
                   && if [ ${ROOT_PASSWORD} == ${CURRENT_ROOT_PASSWORD} ]
-                    then exit 0
-                    else cp /etc/secrets/stolon/password ${STKEEPER_DATA_DIR}/password && kill 1
+                    then
+                      export REPLICATION_PASSWORD=$(cat ${STKEEPER_PG_REPL_PASSWORDFILE}) \
+                      && psql postgresql://stolon:${ROOT_PASSWORD}@{{ .Release.Name }}-proxy-service:5432/postgres -c "ALTER USER repluser WITH PASSWORD '${REPLICATION_PASSWORD}'" \
+                      && psql postgresql://stolon:${ROOT_PASSWORD}@${POD_IP}:5432/postgres -c 'SELECT datname from pg_database'
+                    else
+                      psql postgresql://stolon:${CURRENT_ROOT_PASSWORD}@{{ .Release.Name }}-proxy-service:5432/postgres -c "ALTER USER stolon WITH PASSWORD '${ROOT_PASSWORD}'" \
+                      || psql postgresql://stolon:${ROOT_PASSWORD}@${POD_IP}:5432/postgres -c 'SELECT datname from pg_database' \
+                      && cp -f /etc/secrets/stolon/password ${STKEEPER_DATA_DIR}/password \
+                      && kill 1
                   fi
             failureThreshold: 60
             periodSeconds: 2

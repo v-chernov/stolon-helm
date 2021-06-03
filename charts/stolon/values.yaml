@@ -31,4 +31,5 @@ databases_creation_schedule: "*/2 * * * *"
 openshift:
   enabled: false
 
-postgres_password: ""  # if empty, will be generated random password (30 symbols)
+postgres_password: ""  # system superuser password. if empty, will be generated random password (30 symbols)
+replication_password: "" # system replication user password. if empty, will be generated random password (30 symbols)

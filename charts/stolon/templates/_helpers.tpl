@@ -11,3 +11,11 @@ app.kubernetes.io/managed-by: Helm
    {{ default (randAlphaNum 30) }}
   {{- end -}}
 {{- end -}}
+
+{{- define "stolon.replicaPassword" -}}
+  {{- if .Values.replication_password -}}
+    {{ default .Values.replication_password }}
+  {{- else -}}
+   {{ default (randAlphaNum 30) }}
+  {{- end -}}
+{{- end -}}

@@ -38,4 +38,8 @@ openshift:
   enabled: false # if True, OpenShift/OKD support will enabled (non-root execution etc)
 
 postgres_password: ""  # if empty, will be generated random password (30 symbols)
+replication_password: "" # if empty, will be generated random password (30 symbols)
+  # ATTENTION. if you don't use fixed postgres_password and replication_password values
+  # stolon cluster will be unreachable for ~20 seconds after helm upgrade
+  # because of generation of new passwords
 ```
