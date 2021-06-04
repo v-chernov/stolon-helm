@@ -1,4 +1,4 @@
-{{ if .Values.global.rbac.create }}
+{{ if .Values.rbac.create }}
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
@@ -14,10 +14,10 @@ roleRef:
   kind: Role
   name: {{ .Release.Name }}
 subjects:
-{{ if .Values.global.serviceAccount.create }}
-{{ if .Values.global.serviceAccount.name }}
+{{ if .Values.serviceAccount.create }}
+{{ if .Values.serviceAccount.name }}
   - kind: ServiceAccount
-    name: {{ .Values.global.serviceAccount.name }}
+    name: {{ .Values.serviceAccount.name }}
 {{ else }}
   - kind: ServiceAccount
     name: {{ .Release.Name }}

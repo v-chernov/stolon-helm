@@ -1,5 +1,0 @@
-apiVersion: 'v2'
-name: stolon-init
-description: stolon initial creating config and job
-type: application
-version: 0.2.8

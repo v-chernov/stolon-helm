@@ -2,7 +2,7 @@
 apiVersion: batch/v1beta1
 kind: CronJob
 metadata:
-  name: stolon-db-create
+  name: {{ .Release.Name }}-db-create
   labels:
     chart: {{ .Chart.Name }}-{{ .Chart.Version }}
     heritage: {{ .Release.Service }}
@@ -15,14 +15,15 @@ spec:
       template:
         metadata:
           labels:
-            name: stolon-db-create
-            stolon-cluster: {{ .Release.Name }}
+            name: {{ .Release.Name }}-db-create
+            stolon-cluster: {{ include "stolon.cluster" . }}
         spec:
-          restartPolicy: Never
+        {{ include "stolon.pullsecrets" . | indent 8 }}
+        restartPolicy: Never
           initContainers:
             - name: cluster
               imagePullPolicy: IfNotPresent
-              image: {{ if .Values.global.image_repo }}{{ .Values.global.image_repo }}/{{ end }}busybox:{{ .Values.global.busybox_tag }}
+              image: {{ include "sidecar.image" . }}
               command:
                 - sh
                 - '-c'
@@ -34,29 +35,27 @@ spec:
                   done
 
             - name: pg-check
-              image: {{ if .Values.global.image_repo }}{{ .Values.global.image_repo }}/{{ end }}sorintlab/stolon:master-pg{{ .Values.global.postgres_version }}
+              image: {{ include "stolon.image" . }}
               command:
                 - "/bin/bash"
                 - "-ec"
                 - |
                   export ROOT_PASSWORD=$(cat /etc/secrets/stolon/password)
-                  until psql postgresql://stolon:${ROOT_PASSWORD}@stolon-proxy-service:5432/postgres -c "SELECT datname FROM pg_database;"; do
+                  until psql postgresql://stolon:${ROOT_PASSWORD}@{{ .Release.Name }}-proxy-service:5432/postgres -c "SELECT datname FROM pg_database;"; do
                     echo "waiting for stolon cluster..."
                     sleep 2
                   done
 
               volumeMounts:
-                - mountPath: /etc/secrets/stolon
-                  name: stolon
+                {{- include "stolon.passwordMount" . | indent 16 }}
 
           containers:
             - name: stolon-db-create
-              image: {{ if .Values.global.image_repo }}{{ .Values.global.image_repo }}/{{ end }}sorintlab/stolon:master-pg{{ .Values.global.postgres_version }}
+              image: {{ include "stolon.image" . }}
               command:
                 - "/etc/databases/script.sh"
               volumeMounts:
-                - mountPath: /etc/secrets/stolon
-                  name: stolon
+                {{- include "stolon.passwordMount" . | indent 16 }}
                 - mountPath: /etc/databases
                   name: databases
           volumes:

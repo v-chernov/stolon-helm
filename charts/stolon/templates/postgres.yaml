@@ -9,42 +9,52 @@ spec:
   selector:
     matchLabels:
       component: stolon-keeper
-      stolon-cluster: {{ .Release.Name }}-{{ .Release.Namespace }}
+      stolon-cluster: {{ include "stolon.cluster" . }}
   template:
     metadata:
       labels:
         component: stolon-keeper
-        stolon-cluster: {{ .Release.Name }}-{{ .Release.Namespace }}
+        stolon-cluster: {{ include "stolon.cluster" . }}
       annotations:
         pod.alpha.kubernetes.io/initialized: "true"
         prometheus.io/scrape: "true"
         prometheus.io/port: "8080"
     spec:
-      {{ if .Values.global.serviceAccount.name }}serviceAccountName: {{ .Values.global.serviceAccount.name }}{{ else }}serviceAccountName: default{{ end }}
-      {{ if .Values.global.imagePullSecrets }}imagePullSecrets:
-        {{ range .Values.global.imagePullSecrets }}
-          - {{ . | toYaml}}
-        {{ end }}{{ end }}
+      serviceAccountName: {{ include "stolon.serviceAccount" . }}
+      {{ include "stolon.pullsecrets" . | indent 6 }}
       initContainers:
-        - name: cluster
+        - name: check-sentinel
           imagePullPolicy: IfNotPresent
-          image: {{ if .Values.global.image_repo }}{{ .Values.global.image_repo }}/{{ end }}busybox:{{ .Values.global.busybox_tag }}
+          image: {{ include "sidecar.image" . }}
           command:
             - sh
             - '-c'
             - |
               echo trying to contact {{ .Release.Name }}-sentinel-monitoring 8080
               until nc -vzw 1 {{ .Release.Name }}-sentinel-monitoring 8080; do
-                echo "waiting for stolon cluster..."
+                echo "waiting for stolon sentinel..."
                 sleep 2
               done
 
-        - name: force-permissions
+        - name: check-proxy
           imagePullPolicy: IfNotPresent
-          image: {{ if .Values.global.image_repo }}{{ .Values.global.image_repo }}/{{ end }}busybox:{{ .Values.global.busybox_tag }}
+          image: {{ include "sidecar.image" . }}
           command:
             - sh
             - '-c'
+            - |
+              echo trying to contact {{ .Release.Name }}-proxy-service 5432
+              until nc -vzw 1 {{ .Release.Name }}-proxy-service 5432; do
+                echo "waiting for stolon TCP proxy..."
+                sleep 2
+              done
+
+        - name: init-cluster
+          imagePullPolicy: IfNotPresent
+          image: {{ include "stolon.image" . }}
+          command:
+            - '/bin/bash'
+            - '-ec'
             - |
               if [ -d ${STKEEPER_DATA_DIR}/postgres ]
                 then
@@ -63,22 +73,81 @@ spec:
                   cp /etc/secrets/stolon/password ${STKEEPER_DATA_DIR}/password
                   chmod 600 ${STKEEPER_DATA_DIR}/password
               fi
+
+              if [ -d ${STKEEPER_DATA_DIR}/cluster_backup ]
+                then
+                  echo CLUSTER STATE BACKUP DIRECTORY ALREADY EXISTS
+                else
+                  mkdir ${STKEEPER_DATA_DIR}/cluster_backup
+                  {{ if not .Values.openshift.enabled }}chown stolon:stolon ${STKEEPER_DATA_DIR}/cluster_backup{{ end }}
+                  echo CLUSTER BACKUP DIRECTORY CREATED
+              fi
+
+              # if cluster state file exists
+              if [ -f ${STKEEPER_DATA_DIR}/dbstate ]
+                then
+                  cp ${STKEEPER_DATA_DIR}/dbstate ${STKEEPER_DATA_DIR}/cluster_backup/dbstate-$(date +%F-%H-%M-%S)
+                  echo CLUSTER DATA BACKUP FINISHED
+                  echo TRY START STOLON
+                else
+                  echo CLUSTER DATA DOES NOT EXISTS
+                  # check database data existence
+                  if [ -d ${STKEEPER_DATA_DIR}/postgres/base ]
+                    then
+                      echo CLUSTER DATA DOES NOT EXISTS BUT POSTGRES DATA EXISTS, CLUSTER NEEDS REPAIR
+                      sleep 30
+                      exit 1
+                    else
+                      if [[ $(ls ${STKEEPER_DATA_DIR}/cluster_backup | wc -l ) > 0 ]]
+                        then
+                          echo CLUSTER DATA BACKUP EXISTS BUT POSTGRES DATA DOESNT EXIST, CLUSTER NEEDS REPAIR
+                          sleep 30
+                          exit 1
+                        else
+                          echo CLUSTER DATA DOESNT EXISTS, CLUSTER BACKUP DATA DOESNT EXIST AND POSTGRES DATA DOESNT EXIST
+                          if [[ ${POD_NAME} == {{ .Release.Name }}-keeper-0 ]]
+                            then
+                              echo CLUSTER WILL BE INITIALIZED
+                              stolonctl init --log-level=debug -y
+                              echo CLUSTER IS INITIALIZED, TRY START STOLON
+                            else
+                              echo THIS IS NOT THE FIRST CLUSTER NODE
+                              echo STOLON CANNOT BE INIT ON THIS NODE
+                              echo TRY START STOLON
+                          fi
+                      fi
+                  fi
+              fi
+
           env:
             - name: STKEEPER_DATA_DIR
               value: "/stolon-data"
+            - name: STOLONCTL_CLUSTER_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.labels['stolon-cluster']
+            - name: STOLONCTL_STORE_BACKEND
+              value: "kubernetes"
+            - name: STOLONCTL_KUBE_RESOURCE_KIND
+              value: "configmap"
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+
           volumeMounts:
             - mountPath: /stolon-data
               name: {{ .Release.Name }}-data
-            - mountPath: /etc/secrets/stolon
-              name: {{ .Release.Name }}
+            {{- include "stolon.passwordMount" . | indent 12 }}
 
       containers:
         - name: keeper
-          image: {{ if .Values.global.image_repo }}{{ .Values.global.image_repo }}/{{ end }}sorintlab/stolon:master-pg{{ .Values.global.postgres_version }}
+          image: {{ include "stolon.image" . }}
           command:
             - "/bin/bash"
             - "-ec"
             - "{{ if not .Values.openshift.enabled }}exec gosu stolon {{ end }}stolon-keeper --uid ${POD_NAME##*keeper-}"
+
           env:
             - name: STKEEPER_DATA_DIR
               value: "/stolon-data"
@@ -128,8 +197,7 @@ spec:
           volumeMounts:
             - mountPath: /stolon-data
               name: {{ .Release.Name }}-data
-            - mountPath: /etc/secrets/stolon
-              name: {{ .Release.Name }}
+            {{- include "stolon.passwordMount" . | indent 12 }}
           startupProbe:
             exec:
               command:
@@ -146,7 +214,7 @@ spec:
                     else
                       psql postgresql://stolon:${CURRENT_ROOT_PASSWORD}@{{ .Release.Name }}-proxy-service:5432/postgres -c "ALTER USER stolon WITH PASSWORD '${ROOT_PASSWORD}'" \
                       || psql postgresql://stolon:${ROOT_PASSWORD}@${POD_IP}:5432/postgres -c 'SELECT datname from pg_database' \
-                      && cp -f /etc/secrets/stolon/password ${STKEEPER_DATA_DIR}/password \
+                      && cp -f /etc/secrets/stolon/password ${STKEEPER_DATA_DIR}/password 2>&1 \
                       && kill 1
                   fi
             failureThreshold: 60
@@ -168,7 +236,7 @@ spec:
     - metadata:
         labels:
           component: stolon-keeper
-          stolon-cluster: {{ .Release.Name }}-{{ .Release.Namespace }}
+          stolon-cluster: {{ include "stolon.cluster" . }}
         name: {{ .Release.Name }}-data
       spec:
         {{ if .Values.persistence.storageClass }}

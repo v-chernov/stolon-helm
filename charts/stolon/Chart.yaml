@@ -2,7 +2,5 @@ apiVersion: 'v2'
 name: stolon
 description: stolon
 type: application
-version: 0.3.0
-dependencies:
-  - name: stolon-init
-    version: '0.2.8'
+version: 0.4.0
+appVersion: 12

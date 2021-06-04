@@ -8,24 +8,21 @@ spec:
   selector:
     matchLabels:
       component: stolon-sentinel
-      stolon-cluster: {{ .Release.Name }}-{{ .Release.Namespace }}
+      stolon-cluster: {{ include "stolon.cluster" . }}
   template:
     metadata:
       labels:
         component: stolon-sentinel
-        stolon-cluster: {{ .Release.Name }}-{{ .Release.Namespace }}
+        stolon-cluster: {{ include "stolon.cluster" . }}
       annotations:
         prometheus.io/scrape: "true"
         prometheus.io/port: "8080"
     spec:
-      {{ if .Values.global.serviceAccount.name }}serviceAccountName: {{ .Values.global.serviceAccount.name }}{{ else }}serviceAccountName: default{{ end }}
-      {{ if .Values.global.imagePullSecrets }}imagePullSecrets:
-        {{ range .Values.global.imagePullSecrets }}
-          - {{ . | toYaml}}
-        {{ end }}{{ end }}
+      serviceAccountName: {{ include "stolon.serviceAccount" . }}
+      {{ include "stolon.pullsecrets" . | indent 6 }}
       containers:
         - name: sentinel
-          image: {{ if .Values.global.image_repo }}{{ .Values.global.image_repo }}/{{ end }}sorintlab/stolon:master-pg{{ .Values.global.postgres_version }}
+          image: {{ include "stolon.image" . }}
           command:
             - stolon-sentinel
           env:

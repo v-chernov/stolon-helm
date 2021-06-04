@@ -6,19 +6,25 @@ persistence:
   # storageClass: "-"
   size: 512Mi
 
-global:
-  postgres_version: 12
-  busybox_tag: 1.32.0
-  image_repo: ''
-  imagePullSecrets: []
-    #- name: secret1
-    #- name: secret2
-  pgSettings:
-  serviceAccount:
-    create: false
-    #name: default
-  rbac:
-    create: false
+image:
+  registry: docker.io
+  repository: sorintlab/stolon
+  tag: master # SorintLab Stolon release
+  postgres: 12 # major PostgreSQL version
+  pullPolicy: IfNotPresent
+  #pullSecrets:
+
+sidecar:
+  registry: docker.io
+  repository: busybox
+  tag: "1.32.0"
+
+serviceAccount:
+  create: false
+  #name: default
+
+rbac:
+  create: false
 
 cluster_name: "cluster.local"
 

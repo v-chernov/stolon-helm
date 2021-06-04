@@ -16,16 +16,25 @@ persistence:
   # storageClass: "-"
   size: 512Mi
 
-global:
-  postgres_version: 12 # major PostgreSQL version supported by Stolon
-  busybox_tag: 1.32.0 # busybox image tag
-  image_repo: ''
-  imagePullSecrets: [] # list of ImagePullSecrets
-  serviceAccount:
-    create: false # create serviceAccount, use default if not
-  rbac:
-    create: false # create Role and RBAC
-  pgSettings:
+image:
+  registry: docker.io
+  repository: sorintlab/stolon
+  tag: master # SorintLab Stolon release
+  postgres: 12 # major PostgreSQL version
+  pullPolicy: IfNotPresent
+  #pullSecrets:
+
+sidecar:
+  registry: docker.io
+  repository: busybox
+  tag: "1.32.0"
+
+serviceAccount:
+  create: false
+  #name: default
+
+rbac:
+  create: false
 
 databases: {} # databases created after installation. CronJob will overwrite all your manual settings like
               # manually overwritten passwords

@@ -10,4 +10,4 @@ spec:
       targetPort: 8080
   selector:
     component: stolon-sentinel
-    stolon-cluster: {{ .Release.Name }}-{{ .Release.Namespace }}
+    stolon-cluster: {{ include "stolon.cluster" . }}
