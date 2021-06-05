@@ -16,10 +16,9 @@ spec:
         metadata:
           labels:
             name: {{ .Release.Name }}-db-create
-            stolon-cluster: {{ include "stolon.cluster" . }}
+            stolon-cluster: {{ .Release.Name }}
         spec:
-        {{ include "stolon.pullsecrets" . | indent 8 }}
-        restartPolicy: Never
+          restartPolicy: Never
           initContainers:
             - name: cluster
               imagePullPolicy: IfNotPresent
@@ -28,11 +27,13 @@ spec:
                 - sh
                 - '-c'
                 - |
-                  echo trying to contact stolon-proxy-service 5432
-                  until nc -vzw 1 stolon-proxy-service 5432; do
+                  echo trying to contact ${PGHOST} 5432
+                  until nc -vzw 1 ${PGHOST} 5432; do
                     echo "waiting for stolon cluster..."
                     sleep 2
                   done
+              env:
+                {{- include "psql.ctl" . | indent 16 }}
 
             - name: pg-check
               image: {{ include "stolon.image" . }}
@@ -40,28 +41,32 @@ spec:
                 - "/bin/bash"
                 - "-ec"
                 - |
-                  export ROOT_PASSWORD=$(cat /etc/secrets/stolon/password)
-                  until psql postgresql://stolon:${ROOT_PASSWORD}@{{ .Release.Name }}-proxy-service:5432/postgres -c "SELECT datname FROM pg_database;"; do
+                  until {{ include "check.proxy" . }} ; do
                     echo "waiting for stolon cluster..."
                     sleep 2
                   done
-
+              env:
+                {{- include "psql.ctl" . | indent 16 }}
+                - name: STKEEPER_PG_SU_PASSWORDFILE
+                  value: "/etc/secrets/stolon/password"
               volumeMounts:
-                {{- include "stolon.passwordMount" . | indent 16 }}
+                {{- include "stolon.mounts" . | indent 16 }}
 
           containers:
             - name: stolon-db-create
               image: {{ include "stolon.image" . }}
               command:
                 - "/etc/databases/script.sh"
+              env:
+                {{- include "psql.ctl" . | indent 16 }}
+                - name: STKEEPER_PG_SU_PASSWORDFILE
+                  value: "/etc/secrets/stolon/password"
               volumeMounts:
-                {{- include "stolon.passwordMount" . | indent 16 }}
+                {{- include "stolon.mounts" . | indent 16 }}
                 - mountPath: /etc/databases
                   name: databases
           volumes:
-            - name: stolon
-              secret:
-                secretName: {{ .Release.Name }}
+            {{- include "stolon.configVolumes" . | indent 12 }}
             - name: databases
               configMap:
                 name: {{ .Release.Name }}-databases

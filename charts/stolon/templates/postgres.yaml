@@ -43,11 +43,13 @@ spec:
             - sh
             - '-c'
             - |
-              echo trying to contact {{ .Release.Name }}-proxy-service 5432
-              until nc -vzw 1 {{ .Release.Name }}-proxy-service 5432; do
+              echo trying to contact ${PGHOST} 5432
+              until nc -vzw 1 ${PGHOST} 5432; do
                 echo "waiting for stolon TCP proxy..."
                 sleep 2
               done
+          env:
+            {{- include "psql.ctl" . | indent 12 }}
 
         - name: init-cluster
           imagePullPolicy: IfNotPresent
@@ -79,7 +81,9 @@ spec:
                   echo CLUSTER STATE BACKUP DIRECTORY ALREADY EXISTS
                 else
                   mkdir ${STKEEPER_DATA_DIR}/cluster_backup
-                  {{ if not .Values.openshift.enabled }}chown stolon:stolon ${STKEEPER_DATA_DIR}/cluster_backup{{ end }}
+                  {{- if not .Values.openshift.enabled }}
+                  chown stolon:stolon ${STKEEPER_DATA_DIR}/cluster_backup
+                  {{- end }}
                   echo CLUSTER BACKUP DIRECTORY CREATED
               fi
 
@@ -88,6 +92,8 @@ spec:
                 then
                   cp ${STKEEPER_DATA_DIR}/dbstate ${STKEEPER_DATA_DIR}/cluster_backup/dbstate-$(date +%F-%H-%M-%S)
                   echo CLUSTER DATA BACKUP FINISHED
+                  echo APPLY STOLON CONFIG
+                  stolonctl update -p -f {{ include "stolon.configPath" . }}/config.json
                   echo TRY START STOLON
                 else
                   echo CLUSTER DATA DOES NOT EXISTS
@@ -109,7 +115,10 @@ spec:
                             then
                               echo CLUSTER WILL BE INITIALIZED
                               stolonctl init --log-level=debug -y
-                              echo CLUSTER IS INITIALIZED, TRY START STOLON
+                              echo CLUSTER IS INITIALIZED
+                              echo APPLY STOLON CONFIG
+                              stolonctl update -p -f {{ include "stolon.configPath" . }}/config.json
+                              echo TRY START STOLON
                             else
                               echo THIS IS NOT THE FIRST CLUSTER NODE
                               echo STOLON CANNOT BE INIT ON THIS NODE
@@ -122,23 +131,17 @@ spec:
           env:
             - name: STKEEPER_DATA_DIR
               value: "/stolon-data"
-            - name: STOLONCTL_CLUSTER_NAME
-              valueFrom:
-                fieldRef:
-                  fieldPath: metadata.labels['stolon-cluster']
-            - name: STOLONCTL_STORE_BACKEND
-              value: "kubernetes"
-            - name: STOLONCTL_KUBE_RESOURCE_KIND
-              value: "configmap"
             - name: POD_NAME
               valueFrom:
                 fieldRef:
                   fieldPath: metadata.name
+            {{- include "psql.ctl" . | indent 12 }}
+            {{- include "stolon.ctl" . | indent 12 }}
 
           volumeMounts:
             - mountPath: /stolon-data
               name: {{ .Release.Name }}-data
-            {{- include "stolon.passwordMount" . | indent 12 }}
+            {{- include "stolon.mounts" . | indent 12 }}
 
       containers:
         - name: keeper
@@ -147,7 +150,6 @@ spec:
             - "/bin/bash"
             - "-ec"
             - "{{ if not .Values.openshift.enabled }}exec gosu stolon {{ end }}stolon-keeper --uid ${POD_NAME##*keeper-}"
-
           env:
             - name: STKEEPER_DATA_DIR
               value: "/stolon-data"
@@ -181,23 +183,15 @@ spec:
               value: "/stolon-data/password"
             - name: STKEEPER_METRICS_LISTEN_ADDRESS
               value: "0.0.0.0:8080"
-
-            - name: STOLONCTL_CLUSTER_NAME
-              valueFrom:
-                fieldRef:
-                  fieldPath: metadata.labels['stolon-cluster']
-            - name: STOLONCTL_STORE_BACKEND
-              value: "kubernetes"
-            - name: STOLONCTL_KUBE_RESOURCE_KIND
-              value: "configmap"
-
+            {{- include "stolon.ctl" . | indent 12 }}
+            {{- include "psql.ctl" . | indent 12 }}
           ports:
             - containerPort: 5432
             - containerPort: 8080
           volumeMounts:
             - mountPath: /stolon-data
               name: {{ .Release.Name }}-data
-            {{- include "stolon.passwordMount" . | indent 12 }}
+            {{- include "stolon.mounts" . | indent 12 }}
           startupProbe:
             exec:
               command:
@@ -209,12 +203,13 @@ spec:
                   && if [ ${ROOT_PASSWORD} == ${CURRENT_ROOT_PASSWORD} ]
                     then
                       export REPLICATION_PASSWORD=$(cat ${STKEEPER_PG_REPL_PASSWORDFILE}) \
-                      && psql postgresql://stolon:${ROOT_PASSWORD}@{{ .Release.Name }}-proxy-service:5432/postgres -c "ALTER USER repluser WITH PASSWORD '${REPLICATION_PASSWORD}'" \
-                      && psql postgresql://stolon:${ROOT_PASSWORD}@${POD_IP}:5432/postgres -c 'SELECT datname from pg_database'
+                      && {{ include "proxy.connect" . }} -c "ALTER USER repluser WITH PASSWORD '${REPLICATION_PASSWORD}'" \
+                      && {{ include "check.node" . }}
                     else
-                      psql postgresql://stolon:${CURRENT_ROOT_PASSWORD}@{{ .Release.Name }}-proxy-service:5432/postgres -c "ALTER USER stolon WITH PASSWORD '${ROOT_PASSWORD}'" \
+                      psql postgresql://stolon:${CURRENT_ROOT_PASSWORD}@${PGHOST}:5432/${PGDATABASE} -c "ALTER USER stolon WITH PASSWORD '${ROOT_PASSWORD}'" \
                       || psql postgresql://stolon:${ROOT_PASSWORD}@${POD_IP}:5432/postgres -c 'SELECT datname from pg_database' \
-                      && cp -f /etc/secrets/stolon/password ${STKEEPER_DATA_DIR}/password 2>&1 \
+                      && cp -f /etc/secrets/stolon/password ${STKEEPER_DATA_DIR}/password \
+                      && {{ include "check.node" . }} \
                       && kill 1
                   fi
             failureThreshold: 60
@@ -222,15 +217,14 @@ spec:
           livenessProbe:
             exec:
               command:
-                - "/bin/bash"
-                - "-ec"
-                - "psql postgresql://stolon:$(cat ${STKEEPER_PG_SU_PASSWORDFILE})@${POD_IP}:5432/postgres -c 'SELECT datname from pg_database'"
+                - bash
+                - '-ec'
+                - |
+                  {{ include "check.node" . }}
             periodSeconds: 10
             failureThreshold: 2
       volumes:
-        - name: {{ .Release.Name }}
-          secret:
-            secretName: {{ .Release.Name }}
+        {{- include "stolon.configVolumes" . | indent 8 }}
 
   volumeClaimTemplates:
     - metadata:

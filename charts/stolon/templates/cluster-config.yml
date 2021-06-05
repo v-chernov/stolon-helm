@@ -1,0 +1,15 @@
+{{ if .Values.stolon }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  namespace: {{ .Release.Namespace }}
+
+  name: {{ .Release.Name }}-config
+  labels:
+    chart: {{ .Chart.Name }}-{{ .Chart.Version }}
+    heritage: {{ .Release.Service }}
+    release: {{ .Release.Name }}
+data:
+  config.json: |
+    {{ .Values.stolon | toJson }}
+{{ end }}

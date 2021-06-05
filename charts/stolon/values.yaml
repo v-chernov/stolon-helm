@@ -2,6 +2,9 @@ postgres_replicas: 3
 proxy_replicas: 1
 sentinel_replicas: 1
 
+openshift:
+  enabled: false
+
 persistence:
   # storageClass: "-"
   size: 512Mi
@@ -28,14 +31,21 @@ rbac:
 
 cluster_name: "cluster.local"
 
+# if not empty, generate Stolon JSON config
+# full reference in https://github.com/sorintlab/stolon/blob/master/doc/cluster_spec.md
+# config apply after keeper restart
+stolon:
+  automaticPgRestart: false
+  # most PostgreSQL parameters maps as pgParameters
+  # use official docs for understanding them: https://www.postgresql.org/docs/12/config-setting.html
+  pgParameters:
+    #wal_level: logical
+
 databases: {} # databases created after installation
   #keycloak:
-  #  name: keycloak
-  #  password: # if empty or undefined, will be generated random password (30 symbols)
+    # name: keycloak
+    # password: "" # if empty or undefined, will be generated random password (30 symbols)
 databases_creation_schedule: "*/2 * * * *"
-
-openshift:
-  enabled: false
 
 postgres_password: ""  # system superuser password. if empty, will be generated random password (30 symbols)
 replication_password: "" # system replication user password. if empty, will be generated random password (30 symbols)

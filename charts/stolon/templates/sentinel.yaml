@@ -40,14 +40,13 @@ spec:
               value: "configmap"
             - name: STSENTINEL_METRICS_LISTEN_ADDRESS
               value: "0.0.0.0:8080"
+            {{- include "stolon.ctl" . | indent 12 }}
+            {{- include "psql.ctl" . | indent 12 }}
 
-            - name: STOLONCTL_CLUSTER_NAME
-              valueFrom:
-                fieldRef:
-                  fieldPath: metadata.labels['stolon-cluster']
-            - name: STOLONCTL_STORE_BACKEND
-              value: "kubernetes"
-            - name: STOLONCTL_KUBE_RESOURCE_KIND
-              value: "configmap"
           ports:
             - containerPort: 8080
+
+          volumeMounts:
+            {{- include "stolon.mounts" . | indent 12 }}
+      volumes:
+        {{- include "stolon.configVolumes" . | indent 8 }}

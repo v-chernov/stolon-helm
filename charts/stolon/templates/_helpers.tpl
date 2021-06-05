@@ -48,7 +48,61 @@ imagePullSecrets:
 {{- end }}
 {{- end -}}
 
-{{ define "stolon.passwordMount" }}
+{{- define "stolon.config" -}}
+{{- default .Release.Name -}}-config
+{{- end -}}
+
+{{- define "stolon.configPath" -}}
+{{- default "/stolon-data/config" }}
+{{- end -}}
+
+{{ define "stolon.mounts" }}
 - mountPath: "/etc/secrets/stolon"
   name: {{ .Release.Name }}
+{{- if .Values.stolon }}
+- mountPath: {{ include "stolon.configPath" . }}
+  name: {{ include "stolon.config" . }}
+{{- end }}
 {{- end -}}
+
+{{- define "stolon.configVolumes" }}
+- name: {{ .Release.Name }}
+  secret:
+    secretName: {{ .Release.Name }}
+{{- if .Values.stolon }}
+- name: {{ include "stolon.config" . }}
+  configMap:
+    name: {{ .Release.Name }}-config
+{{- end }}
+{{- end }}
+
+{{- define "stolon.ctl" }}
+- name: STOLONCTL_CLUSTER_NAME
+  valueFrom:
+    fieldRef:
+      fieldPath: metadata.labels['stolon-cluster']
+- name: STOLONCTL_STORE_BACKEND
+  value: "kubernetes"
+- name: STOLONCTL_KUBE_RESOURCE_KIND
+  value: "configmap"
+{{- end }}
+
+{{- define "psql.ctl" }}
+- name: PGHOST
+  value: "{{ .Release.Name }}"
+- name: PGDATABASE
+  value: "postgres"
+{{- end }}
+
+{{- define "check.node" -}}
+psql postgresql://stolon:$(cat ${STKEEPER_PG_SU_PASSWORDFILE})@${POD_IP}:5432/${PGDATABASE} -c 'SELECT datname from pg_database'
+{{- end -}}
+
+{{- define "proxy.connect" -}}
+psql postgresql://stolon:$(cat ${STKEEPER_PG_SU_PASSWORDFILE})@${PGHOST}:5432/${PGDATABASE}
+{{- end -}}
+
+{{- define "check.proxy" -}}
+{{ include "proxy.connect" . }} -c 'SELECT datname from pg_database'
+{{- end -}}
+
