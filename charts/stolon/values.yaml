@@ -73,10 +73,10 @@ proxyResources:
 #     name: keycloak
 #     password: "" # if empty or undefined, will be generated random password (30 symbols)
 
-#additionalUser:
-  #replica:
-  #  name: test-replicauser
-  #  permissions: REPLICATION
+additionalUser:
+  replica:
+    name: test-replicauser
+    permissions: REPLICATION
   # if password empty or undefined, will be generated random password (30 symbols)
   #superuser:
   #  name: test-superuser

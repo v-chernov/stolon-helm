@@ -21,7 +21,7 @@ data:
     {{- end }}
     {{- if .Values.additionalUser }}
     {{- range $user := .Values.additionalUser  }}
-    {{ include "proxy.connect" . }} -c 'CREATE ROLE \"{{ $user.name }}\" WITH LOGIN;'
+    {{ include "proxy.connect" . }} -c 'CREATE ROLE "{{ $user.name }}" WITH LOGIN;'
     echo """ALTER USER \"{{ $user.name }}\" WITH {{ if $user.permissions }}{{ $user.permissions }}{{ end }} PASSWORD '$(cat /etc/secrets/stolon/user-{{ $user.name }})'""" | {{ include "proxy.connect" . }}
     {{- end }}
     {{- end }}
