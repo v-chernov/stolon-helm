@@ -48,5 +48,11 @@ spec:
 
           volumeMounts:
             {{- include "stolon.mounts" . | indent 12 }}
+
+          {{- if .Values.initResources }}
+          resources:
+            {{- toYaml .Values.initResources | nindent 12 }}
+          {{- end }}
+
       volumes:
         {{- include "stolon.configVolumes" . | indent 8 }}

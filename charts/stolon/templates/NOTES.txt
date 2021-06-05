@@ -14,10 +14,17 @@ kubectl get secret -n {{ .Release.Name }} stolon -o jsonpath='{.data.password}'
 Get password for repluser:
 kubectl get secret -n {{ .Release.Name }} stolon -o jsonpath='{.data.replpassword}'
 
-{{ if .Values.databases }}
+{{ if or .Values.databases .Values.additionalUser }}
 Created databases and users:
-{{ range $database := .Values.databases }}
-  {{ $database.name }} {{ if $database.password }}{{ $database.password }}{{ else }}<random password>{{ end }}
+{{- if .Values.databases }}
+{{- range $database := .Values.databases }}
+  {{ $database.name }} {{ if $database.password }}{{ $database.password }}{{ else }}<random password>{{ end }} LOGIN
+{{- end }}
+{{- end }}
+{{ if or .Values.additionalUser }}
+{{- range $user := .Values.additionalUser }}
+  {{ $user.name }} {{ if $user.password }}{{ $user.password }}{{ else }}<random password>{{ end }} {{ if $user.permissions }}{{ $user.permissions }} {{ end }}LOGIN
+{{- end }}
 {{ end }}
 You can get all SQL code about databases and users from ConfigMap
 kubectl get configmap -n {{ .Release.Name }} databases -o jsonpath='{.data}'

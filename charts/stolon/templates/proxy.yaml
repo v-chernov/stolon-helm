@@ -34,6 +34,11 @@ spec:
                 echo "waiting for stolon cluster..."
                 sleep 2
               done
+          {{- if .Values.initResources }}
+          resources:
+            {{- toYaml .Values.initResources | nindent 12 }}
+          {{- end }}
+
       containers:
         - name: proxy
           image: {{ include "stolon.image" . }}
@@ -69,3 +74,8 @@ spec:
               port: 5432
             initialDelaySeconds: 10
             timeoutSeconds: 5
+
+          {{- if .Values.proxyResources }}
+          resources:
+            {{- toYaml .Values.proxyResources | nindent 12 }}
+          {{- end }}

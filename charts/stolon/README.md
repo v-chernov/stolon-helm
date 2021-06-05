@@ -4,12 +4,19 @@ Raw and dirty helm chart for Stolon
 
 Created from examples from an official repo https://github.com/sorintlab/stolon
 
+## TL;DR
+
+```shell
+helm repo add stolon-helm https://v-chernov.github.io/stolon-helm
+helm install -n YOUR_NAMESPACE stolon stolon-helm/stolon
+```
+
 ## Variables
 
 ```yaml
 postgres_replicas: 3 # number of keeper (PostgreSQL + Kubernetes API interaction module) instances
-proxy_replicas: 1 # number of cluster proxy instances
-sentinel_replicas: 1 # number of sentinel (Kubernetes healthcheck module) instances
+proxy_replicas: 2 # number of cluster proxy instances
+sentinel_replicas: 2 # number of sentinel (Kubernetes healthcheck module) instances
 
 persistence:
   # storageClass: "-"
@@ -45,12 +52,21 @@ stolon:
   pgSettings:
     wal_level: logical
 
-databases: {} # databases created after installation. CronJob will overwrite all your manual settings like
-              # manually overwritten passwords
-  #keycloak:
-  #  name: keycloak
-  #  password: # if empty or undefined, will be generated random password (30 symbols)
-databases_creation_schedule: "*/2 * * * *" # Cron string
+#databases: # databases created after installation
+#  keycloak:
+#     name: keycloak
+#     password: "" # if empty or undefined, will be generated random password (30 symbols)
+
+#additionalUser:
+  #replica:
+  #  name: test-replicauser
+  #  permissions: REPLICATION
+  #superuser:
+  #  name: test-superuser
+  #  permissions: SUPERUSER
+  #  password: super-user-super-secret
+
+#secrets_refresh_schedule: "*/2 * * * *" # if defined, creates CronJob
 
 openshift:
   enabled: false # if True, OpenShift/OKD support will enabled (non-root execution etc)
@@ -60,6 +76,35 @@ replication_password: "" # if empty, will be generated random password (30 symbo
   # ATTENTION. if you don't use fixed postgres_password and replication_password values
   # stolon cluster will be unreachable for ~20 seconds after helm upgrade
   # because of generation of new passwords
+
+# Pod resource requests and limits for PostgreSQL (keeper). Be careful with this parameters
+resources: {}
+  # requests:
+  #   cpu: "500m"
+  #   memory: "1024Mi"
+  # limits:
+  #   cpu: "500m"
+  #   memory: "1024Mi"
+# Standard dummy installation can use <= 2Gi of RAM.
+# For more complex installations you must calculate it or leave empty
+
+# Pod resource requests and limits for initContainers, Jobs and Sentinel
+initResources:
+  requests:
+    cpu: "10m"
+    memory: "20Mi"
+  limits:
+    cpu: "20m"
+    memory: "50Mi"
+
+# Pod resource requests and limits for Proxy
+proxyResources:
+  requests:
+    cpu: "10m"
+    memory: "50Mi"
+  limits:
+    cpu: "20m"
+    memory: "100Mi"
 ```
 
 ## Be careful with your data!
@@ -117,3 +162,6 @@ By default, Stolon use 2 system cluster users: `stolon` as a superuser and `repl
 If you want to perform the total destroy of the cluster you can just execute 
 `ALTER USER stolon WITH PASSWORD 'somepassword'`. After it, PostgreSQL nodes will be restarted and couldn't 
 recover ever.
+
+We strongly recommend you create additional superuser and/or replication user. You can do it manual or with 
+`additionalUser` block. Keep default users `stolon` and `repluser` work with cluster only.

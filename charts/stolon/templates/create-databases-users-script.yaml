@@ -1,9 +1,8 @@
-{{ if .Values.databases }}
+{{- if or .Values.databases .Values.additionalUser }}
 apiVersion: v1
 kind: ConfigMap
 metadata:
   namespace: {{ .Release.Namespace }}
-
   name: {{ .Release.Name }}-databases
   labels:
     chart: {{ .Chart.Name }}-{{ .Chart.Version }}
@@ -15,9 +14,15 @@ data:
     {{- if .Values.databases }}
     {{- range $database := .Values.databases }}
     {{ include "proxy.connect" . }} {{ printf "-c 'CREATE USER \"%s\";'" $database.name }}
-    echo """ALTER USER \"{{ $database.name }}\" WITH PASSWORD '{{ if $database.password }}{{ $database.password }}{{ else }}{{ randAlphaNum 30 }}{{ end }}'""" | {{ include "proxy.connect" . }}
+    echo """ALTER USER \"{{ $database.name }}\" WITH PASSWORD '$(cat /etc/secrets/stolon/database-{{ $database.name }})'""" | {{ include "proxy.connect" . }}
     {{ include "proxy.connect" . }} {{ printf "-c 'CREATE DATABASE \"%s\";'" $database.name }}
     {{ include "proxy.connect" . }} {{ printf "-c 'ALTER DATABASE \"%s\" OWNER TO \"%s\";'" $database.name $database.name }}
     {{- end }}
     {{- end }}
-{{ end }}
+    {{- if .Values.additionalUser }}
+    {{- range $user := .Values.additionalUser  }}
+    {{ include "proxy.connect" . }} -c 'CREATE ROLE \"{{ $user.name }}\" WITH LOGIN;'
+    echo """ALTER USER \"{{ $user.name }}\" WITH {{ if $user.permissions }}{{ $user.permissions }}{{ end }} PASSWORD '$(cat /etc/secrets/stolon/user-{{ $user.name }})'""" | {{ include "proxy.connect" . }}
+    {{- end }}
+    {{- end }}
+{{- end }}

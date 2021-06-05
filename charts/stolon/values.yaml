@@ -1,6 +1,6 @@
 postgres_replicas: 3
-proxy_replicas: 1
-sentinel_replicas: 1
+proxy_replicas: 2
+sentinel_replicas: 2
 
 openshift:
   enabled: false
@@ -41,11 +41,49 @@ stolon:
   pgParameters:
     #wal_level: logical
 
-databases: {} # databases created after installation
-  #keycloak:
-    # name: keycloak
-    # password: "" # if empty or undefined, will be generated random password (30 symbols)
-databases_creation_schedule: "*/2 * * * *"
+# Pod resource requests and limits for PostgreSQL (keeper). Be careful with this parameters
+resources: {}
+  # requests:
+  #   cpu: "500m"
+  #   memory: "1024Mi"
+  # limits:
+  #   cpu: "500m"
+  #   memory: "1024Mi"
+
+# Pod resource requests and limits for initContainers, Jobs and Sentinel
+initResources:
+  requests:
+    cpu: "10m"
+    memory: "20Mi"
+  limits:
+    cpu: "20m"
+    memory: "50Mi"
+
+# Pod resource requests and limits for Proxy
+proxyResources:
+  requests:
+    cpu: "10m"
+    memory: "50Mi"
+  limits:
+    cpu: "20m"
+    memory: "100Mi"
+
+#databases: # databases created after installation
+#  keycloak:
+#     name: keycloak
+#     password: "" # if empty or undefined, will be generated random password (30 symbols)
+
+#additionalUser:
+  #replica:
+  #  name: test-replicauser
+  #  permissions: REPLICATION
+  # if password empty or undefined, will be generated random password (30 symbols)
+  #superuser:
+  #  name: test-superuser
+  #  permissions: SUPERUSER
+  #  password: super-user-super-secret
+
+#secrets_refresh_schedule: "*/2 * * * *" # if defined, creates CronJob
 
 postgres_password: ""  # system superuser password. if empty, will be generated random password (30 symbols)
 replication_password: "" # system replication user password. if empty, will be generated random password (30 symbols)

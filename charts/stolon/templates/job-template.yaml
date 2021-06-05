@@ -1,13 +1,19 @@
-{{ if .Values.databases }}
+{{- if or .Values.databases .Values.additionalUser }}
+{{- if .Values.secrets_refresh_schedule }}
 apiVersion: batch/v1beta1
 kind: CronJob
+{{- else }}
+apiVersion: batch/v1
+kind: Job
+{{- end }}
 metadata:
-  name: {{ .Release.Name }}-db-create
+  name: {{ .Release.Name }}-init
   labels:
     chart: {{ .Chart.Name }}-{{ .Chart.Version }}
     heritage: {{ .Release.Service }}
     release: {{ .Release.Name }}
   namespace: {{ .Release.Namespace }}
+{{- if .Values.secrets_refresh_schedule }}
 spec:
   schedule: "{{ .Values.databases_creation_schedule }}"
   jobTemplate:
@@ -18,6 +24,17 @@ spec:
             name: {{ .Release.Name }}-db-create
             stolon-cluster: {{ .Release.Name }}
         spec:
+{{- else }}
+spec:
+  template:
+    metadata:
+      labels:
+        component: {{ .Release.Name }}-init
+        stolon-cluster: {{ .Release.Name }}-{{ .Release.Namespace }}
+    spec:
+{{- end }}
+          serviceAccountName: {{ include "stolon.serviceAccount" . }}
+          {{ include "stolon.pullsecrets" . | indent 10 }}
           restartPolicy: Never
           initContainers:
             - name: cluster
@@ -34,6 +51,10 @@ spec:
                   done
               env:
                 {{- include "psql.ctl" . | indent 16 }}
+              {{- if .Values.initResources }}
+              resources:
+                {{- toYaml .Values.initResources | nindent 16 }}
+              {{- end }}
 
             - name: pg-check
               image: {{ include "stolon.image" . }}
@@ -51,6 +72,10 @@ spec:
                   value: "/etc/secrets/stolon/password"
               volumeMounts:
                 {{- include "stolon.mounts" . | indent 16 }}
+              {{- if .Values.initResources }}
+              resources:
+                {{- toYaml .Values.initResources | nindent 16 }}
+              {{- end }}
 
           containers:
             - name: stolon-db-create
@@ -65,10 +90,16 @@ spec:
                 {{- include "stolon.mounts" . | indent 16 }}
                 - mountPath: /etc/databases
                   name: databases
+
+              {{- if .Values.initResources }}
+              resources:
+                {{- toYaml .Values.initResources | nindent 16 }}
+              {{- end }}
+
           volumes:
             {{- include "stolon.configVolumes" . | indent 12 }}
             - name: databases
               configMap:
                 name: {{ .Release.Name }}-databases
                 defaultMode: 0755
-{{ end }}
+{{- end }}

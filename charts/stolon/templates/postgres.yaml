@@ -35,6 +35,10 @@ spec:
                 echo "waiting for stolon sentinel..."
                 sleep 2
               done
+          {{- if .Values.initResources }}
+          resources:
+            {{- toYaml .Values.initResources | nindent 12 }}
+          {{- end }}
 
         - name: check-proxy
           imagePullPolicy: IfNotPresent
@@ -50,6 +54,10 @@ spec:
               done
           env:
             {{- include "psql.ctl" . | indent 12 }}
+          {{- if .Values.initResources }}
+          resources:
+            {{- toYaml .Values.initResources | nindent 12 }}
+          {{- end }}
 
         - name: init-cluster
           imagePullPolicy: IfNotPresent
@@ -137,6 +145,10 @@ spec:
                   fieldPath: metadata.name
             {{- include "psql.ctl" . | indent 12 }}
             {{- include "stolon.ctl" . | indent 12 }}
+          {{- if .Values.initResources }}
+          resources:
+            {{- toYaml .Values.initResources | nindent 12 }}
+          {{- end }}
 
           volumeMounts:
             - mountPath: /stolon-data
@@ -223,6 +235,11 @@ spec:
                   {{ include "check.node" . }}
             periodSeconds: 10
             failureThreshold: 2
+          {{- if .Values.resources }}
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          {{- end }}
+
       volumes:
         {{- include "stolon.configVolumes" . | indent 8 }}
 
