@@ -3,6 +3,16 @@ entries:
   stolon:
   - apiVersion: v2
     appVersion: "12"
+    created: "2021-06-05T23:28:04.478600165Z"
+    description: stolon
+    digest: d2525d05ce0e03b0db94af1294c2dfdbf157b4755c9a390ad6e0e821be81a3ac
+    name: stolon
+    type: application
+    urls:
+    - https://github.com/v-chernov/stolon-helm/releases/download/stolon-0.4.4/stolon-0.4.4.tgz
+    version: 0.4.4
+  - apiVersion: v2
+    appVersion: "12"
     created: "2021-06-05T23:19:28.442723978Z"
     description: stolon
     digest: 9d796e6dc0859e0e5444e4e42a36478d5c51207b760af02435f671d2d76acaec
@@ -262,4 +272,4 @@ entries:
     urls:
     - https://github.com/v-chernov/stolon-helm/releases/download/stolon-0.1.0/stolon-0.1.0.tgz
     version: 0.1.0
-generated: "2021-06-05T23:19:28.443323392Z"
+generated: "2021-06-05T23:28:04.478803062Z"
