@@ -87,6 +87,15 @@ imagePullSecrets:
   value: "configmap"
 {{- end }}
 
+{{- define "stolon.data" }}
+- name: STKEEPER_DATA_DIR
+  value: "/stolon-data"
+- name: STKEEPER_PG_SU_PASSWORDFILE
+  value: "/stolon-data/password"
+- name: STKEEPER_PG_REPL_PASSWORDFILE
+  value: "/etc/secrets/stolon/replpassword"
+{{- end }}
+
 {{- define "psql.ctl" }}
 - name: PGHOST
   value: "{{ .Release.Name }}"
@@ -106,3 +115,10 @@ psql postgresql://stolon:$(cat ${STKEEPER_PG_SU_PASSWORDFILE})@${PGHOST}:5432/${
 {{ include "proxy.connect" . }} -c 'SELECT datname from pg_database'
 {{- end -}}
 
+{{- define "logs" -}}
+| tee --append ${STKEEPER_DATA_DIR}/startup.log
+{{- end -}}
+
+{{- define "data" -}}
+echo $(date {{ .Values.logDataFormat }})
+{{- end -}}
