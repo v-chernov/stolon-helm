@@ -87,3 +87,5 @@ additionalUser:
 
 postgres_password: ""  # system superuser password. if empty, will be generated random password (30 symbols)
 replication_password: "" # system replication user password. if empty, will be generated random password (30 symbols)
+
+logDataFormat: "-I'seconds'"

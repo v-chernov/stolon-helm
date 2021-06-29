@@ -68,77 +68,76 @@ spec:
             - |
               if [ -d ${STKEEPER_DATA_DIR}/postgres ]
                 then
-                  echo FIX DATABASE DIR ${STKEEPER_DATA_DIR} PERMISSIONS
+                  {{ include "data" . }} FIX DATABASE DIR ${STKEEPER_DATA_DIR} PERMISSIONS {{ include "logs" . }}
                   chmod 750 ${STKEEPER_DATA_DIR}/postgres
                   chmod -s ${STKEEPER_DATA_DIR}/postgres
                 else
-                  echo DATABASE IN ${STKEEPER_DATA_DIR} WILL BE INITIALIZED
+                  {{ include "data" . }} DATABASE IN ${STKEEPER_DATA_DIR} WILL BE INITIALIZED {{ include "logs" . }}
                   {{ if not .Values.openshift.enabled }}chown stolon:stolon ${STKEEPER_DATA_DIR}{{ end }}
               fi
-              if [ -f ${STKEEPER_DATA_DIR}/password ]
+              if [ -f ${STKEEPER_PG_SU_PASSWORDFILE} ]
                 then
-                  echo ROOT PASSWORD FILE ${STKEEPER_DATA_DIR}/password EXISTS
+                  {{ include "data" . }} ROOT PASSWORD FILE ${STKEEPER_PG_SU_PASSWORDFILE} EXISTS {{ include "logs" . }}
                 else
-                  echo ROOT PASSWORD FILE ${STKEEPER_DATA_DIR}/password NOT EXISTS
-                  cp /etc/secrets/stolon/password ${STKEEPER_DATA_DIR}/password
-                  chmod 600 ${STKEEPER_DATA_DIR}/password
+                  {{ include "data" . }} ROOT PASSWORD FILE ${STKEEPER_PG_SU_PASSWORDFILE} NOT EXISTS {{ include "logs" . }}
+                  cp /etc/secrets/stolon/password ${STKEEPER_PG_SU_PASSWORDFILE}
+                  chmod 600 ${STKEEPER_PG_SU_PASSWORDFILE}
               fi
 
               if [ -d ${STKEEPER_DATA_DIR}/cluster_backup ]
                 then
-                  echo CLUSTER STATE BACKUP DIRECTORY ALREADY EXISTS
+                  {{ include "data" . }} CLUSTER STATE BACKUP DIRECTORY ALREADY EXISTS {{ include "logs" . }}
                 else
                   mkdir ${STKEEPER_DATA_DIR}/cluster_backup
                   {{- if not .Values.openshift.enabled }}
                   chown stolon:stolon ${STKEEPER_DATA_DIR}/cluster_backup
                   {{- end }}
-                  echo CLUSTER BACKUP DIRECTORY CREATED
+                  {{ include "data" . }} CLUSTER BACKUP DIRECTORY CREATED {{ include "logs" . }}
               fi
 
               # if cluster state file exists
               if [ -f ${STKEEPER_DATA_DIR}/dbstate ]
                 then
                   cp ${STKEEPER_DATA_DIR}/dbstate ${STKEEPER_DATA_DIR}/cluster_backup/dbstate-$(date +%F-%H-%M-%S)
-                  echo CLUSTER DATA BACKUP FINISHED
-                  echo APPLY STOLON CONFIG
+                  {{ include "data" . }} CLUSTER DATA BACKUP FINISHED {{ include "logs" . }}
+                  {{ include "data" . }} APPLY STOLON CONFIG {{ include "logs" . }}
                   stolonctl update -p -f {{ include "stolon.configPath" . }}/config.json
-                  echo TRY START STOLON
+                  {{ include "data" . }} TRY START STOLON {{ include "logs" . }}
                 else
-                  echo CLUSTER DATA DOES NOT EXISTS
+                  {{ include "data" . }} CLUSTER DATA DOES NOT EXISTS {{ include "logs" . }}
                   # check database data existence
                   if [ -d ${STKEEPER_DATA_DIR}/postgres/base ]
                     then
-                      echo CLUSTER DATA DOES NOT EXISTS BUT POSTGRES DATA EXISTS, CLUSTER NEEDS REPAIR
+                      {{ include "data" . }} CLUSTER DATA DOES NOT EXISTS BUT POSTGRES DATA EXISTS, CLUSTER NEEDS REPAIR {{ include "logs" . }}
                       sleep 30
                       exit 1
                     else
                       if [[ $(ls ${STKEEPER_DATA_DIR}/cluster_backup | wc -l ) > 0 ]]
                         then
-                          echo CLUSTER DATA BACKUP EXISTS BUT POSTGRES DATA DOESNT EXIST, CLUSTER NEEDS REPAIR
+                          {{ include "data" . }} CLUSTER DATA BACKUP EXISTS BUT POSTGRES DATA DOESNT EXIST, CLUSTER NEEDS REPAIR {{ include "logs" . }}
                           sleep 30
                           exit 1
                         else
-                          echo CLUSTER DATA DOESNT EXISTS, CLUSTER BACKUP DATA DOESNT EXIST AND POSTGRES DATA DOESNT EXIST
+                          {{ include "data" . }} CLUSTER DATA DOESNT EXISTS, CLUSTER BACKUP DATA DOESNT EXIST AND POSTGRES DATA DOESNT EXIST {{ include "logs" . }}
                           if [[ ${POD_NAME} == {{ .Release.Name }}-keeper-0 ]]
                             then
-                              echo CLUSTER WILL BE INITIALIZED
+                              {{ include "data" . }} CLUSTER WILL BE INITIALIZED {{ include "logs" . }}
                               stolonctl init --log-level=debug -y
-                              echo CLUSTER IS INITIALIZED
-                              echo APPLY STOLON CONFIG
+                              {{ include "data" . }} CLUSTER IS INITIALIZED {{ include "logs" . }}
+                              {{ include "data" . }} APPLY STOLON CONFIG  {{ include "logs" . }}
                               stolonctl update -p -f {{ include "stolon.configPath" . }}/config.json
-                              echo TRY START STOLON
+                              {{ include "data" . }} TRY START STOLON {{ include "logs" . }}
                             else
-                              echo THIS IS NOT THE FIRST CLUSTER NODE
-                              echo STOLON CANNOT BE INIT ON THIS NODE
-                              echo TRY START STOLON
+                              {{ include "data" . }} THIS IS NOT THE FIRST CLUSTER NODE {{ include "logs" . }}
+                              {{ include "data" . }} STOLON CANNOT BE INIT ON THIS NODE {{ include "logs" . }}
+                              {{ include "data" . }} TRY START STOLON {{ include "logs" . }}
                           fi
                       fi
                   fi
               fi
 
           env:
-            - name: STKEEPER_DATA_DIR
-              value: "/stolon-data"
+            {{- include "stolon.data" . | indent 12 }}
             - name: POD_NAME
               valueFrom:
                 fieldRef:
@@ -163,8 +162,6 @@ spec:
             - "-ec"
             - "{{ if not .Values.openshift.enabled }}exec gosu stolon {{ end }}stolon-keeper --uid ${POD_NAME##*keeper-}"
           env:
-            - name: STKEEPER_DATA_DIR
-              value: "/stolon-data"
             - name: POD_NAME
               valueFrom:
                 fieldRef:
@@ -187,15 +184,12 @@ spec:
               value: "configmap"
             - name: STKEEPER_PG_REPL_USERNAME
               value: "repluser"
-            - name: STKEEPER_PG_REPL_PASSWORDFILE
-              value: "/etc/secrets/stolon/replpassword"
             - name: STKEEPER_PG_SU_USERNAME
               value: "stolon"
-            - name: STKEEPER_PG_SU_PASSWORDFILE
-              value: "/stolon-data/password"
             - name: STKEEPER_METRICS_LISTEN_ADDRESS
               value: "0.0.0.0:8080"
             {{- include "stolon.ctl" . | indent 12 }}
+            {{- include "stolon.data" . | indent 12 }}
             {{- include "psql.ctl" . | indent 12 }}
           ports:
             - containerPort: 5432
@@ -210,22 +204,30 @@ spec:
                 - bash
                 - '-c'
                 - |
-                  export ROOT_PASSWORD=$(cat /etc/secrets/stolon/password) \
-                  && export CURRENT_ROOT_PASSWORD=$(cat ${STKEEPER_DATA_DIR}/password) \
+                  export CURRENT_ROOT_PASSWORD=$(cat ${STKEEPER_PG_SU_PASSWORDFILE}) \
+                  && export ROOT_PASSWORD=$(cat /etc/secrets/stolon/password) \
                   && if [ ${ROOT_PASSWORD} == ${CURRENT_ROOT_PASSWORD} ]
                     then
-                      export REPLICATION_PASSWORD=$(cat ${STKEEPER_PG_REPL_PASSWORDFILE}) \
+                      {{ include "data" . }} CURRENT ROOT PASSWORD IS EQUAL TO SECRET ROOT PASSWORD {{ include "logs" . }} \
+                      && until {{ include "check.node" . }}; do sleep 0.1; done \
+                      && export REPLICATION_PASSWORD=$(cat ${STKEEPER_PG_REPL_PASSWORDFILE}) \
+                      && {{ include "data" . }} CONNECTED TO NODE $POD_NAME {{ include "logs" . }} \
                       && {{ include "proxy.connect" . }} -c "ALTER USER repluser WITH PASSWORD '${REPLICATION_PASSWORD}'" \
-                      && {{ include "check.node" . }}
+                      && {{ include "data" . }} REFRESH SYSTEM REPLICATION USER repluser PASSWORD {{ include "logs" . }} \
+                      && psql postgresql://repluser:${REPLICATION_PASSWORD}@${PGHOST}:5432/postgres -c 'SELECT datname from pg_database' \
+                      && {{ include "data" . }} SYSTEM REPLICATION USER repluser IS READY {{ include "logs" . }}
                     else
-                      psql postgresql://stolon:${CURRENT_ROOT_PASSWORD}@${PGHOST}:5432/${PGDATABASE} -c "ALTER USER stolon WITH PASSWORD '${ROOT_PASSWORD}'" \
-                      || psql postgresql://stolon:${ROOT_PASSWORD}@${POD_IP}:5432/postgres -c 'SELECT datname from pg_database' \
+                      {{ include "data" . }} CURRENT ROOT PASSWORD IS NOT EQUAL TO SECRET ROOT PASSWORD {{ include "logs" . }} \
+                      && while {{ include "proxy.connect" . }}; do {{ include "proxy.connect" . }} -c "ALTER USER stolon WITH PASSWORD '${ROOT_PASSWORD}'" && sleep 1; done \
+                      && {{ include "data" . }} FORCE REFRESH OF ROOT PASSWORD EXECUTED {{ include "logs" . }} \
+                      && psql postgresql://stolon:${ROOT_PASSWORD}@${PGHOST}:5432/postgres -c 'SELECT datname from pg_database' \
+                      && {{ include "data" . }} NEW ROOT PASSWORD IS READY, RENEW SYSTEM PASSWORD FILE {{ include "logs" . }} \
                       && cp -f /etc/secrets/stolon/password ${STKEEPER_DATA_DIR}/password \
-                      && {{ include "check.node" . }} \
-                      && kill 1
+                      && pg_ctl -D ${STKEEPER_DATA_DIR}/postgres stop -w
                   fi
-            failureThreshold: 60
-            periodSeconds: 2
+            failureThreshold: 10
+            periodSeconds: 60
+            timeoutSeconds: 60
           livenessProbe:
             exec:
               command:
@@ -235,6 +237,15 @@ spec:
                   {{ include "check.node" . }}
             periodSeconds: 10
             failureThreshold: 2
+          readinessProbe:
+            exec:
+              command:
+                - bash
+                - '-ec'
+                - |
+                  {{ include "check.node" . }}
+            periodSeconds: 5
+
           {{- if .Values.resources }}
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
