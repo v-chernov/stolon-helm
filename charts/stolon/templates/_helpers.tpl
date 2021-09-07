@@ -93,7 +93,7 @@ imagePullSecrets:
 - name: STKEEPER_PG_SU_PASSWORDFILE
   value: "/stolon-data/password"
 - name: STKEEPER_PG_REPL_PASSWORDFILE
-  value: "/etc/secrets/stolon/replpassword"
+  value: "/stolon-data/replpassword"
 {{- end }}
 
 {{- define "psql.ctl" }}

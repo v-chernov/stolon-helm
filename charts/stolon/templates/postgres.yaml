@@ -73,15 +73,29 @@ spec:
                   chmod -s ${STKEEPER_DATA_DIR}/postgres
                 else
                   {{ include "data" . }} DATABASE IN ${STKEEPER_DATA_DIR} WILL BE INITIALIZED {{ include "logs" . }}
-                  {{ if not .Values.openshift.enabled }}chown stolon:stolon ${STKEEPER_DATA_DIR}{{ end }}
+                  if [[ $(id -u) = 0 ]]
+                    then chown stolon:stolon ${STKEEPER_DATA_DIR}
+                  fi
               fi
               if [ -f ${STKEEPER_PG_SU_PASSWORDFILE} ]
                 then
                   {{ include "data" . }} ROOT PASSWORD FILE ${STKEEPER_PG_SU_PASSWORDFILE} EXISTS {{ include "logs" . }}
                 else
                   {{ include "data" . }} ROOT PASSWORD FILE ${STKEEPER_PG_SU_PASSWORDFILE} NOT EXISTS {{ include "logs" . }}
-                  cp /etc/secrets/stolon/password ${STKEEPER_PG_SU_PASSWORDFILE}
+                  cp -f /etc/secrets/stolon/password ${STKEEPER_PG_SU_PASSWORDFILE}
                   chmod 600 ${STKEEPER_PG_SU_PASSWORDFILE}
+                  if [[ $(id -u) = 0 ]]
+                    then
+                      {{ include "data" . }} CHOWN ROOT PASSWORD FILE ${STKEEPER_PG_SU_PASSWORDFILE} TO stolon:stolon BECAUSE OF START AS ROOT {{ include "logs" . }}
+                      chown stolon:stolon ${STKEEPER_PG_SU_PASSWORDFILE}
+                  fi
+              fi
+
+              cp -f /etc/secrets/stolon/replpassword ${STKEEPER_PG_REPL_PASSWORDFILE}
+              if [[ $(id -u) = 0 ]]
+                then
+                  {{ include "data" . }} CHOWN ROOT PASSWORD FILE ${STKEEPER_PG_REPL_PASSWORDFILE} TO stolon:stolon BECAUSE OF START AS ROOT {{ include "logs" . }}
+                  chown stolon:stolon ${STKEEPER_PG_REPL_PASSWORDFILE}
               fi
 
               if [ -d ${STKEEPER_DATA_DIR}/cluster_backup ]
@@ -89,9 +103,9 @@ spec:
                   {{ include "data" . }} CLUSTER STATE BACKUP DIRECTORY ALREADY EXISTS {{ include "logs" . }}
                 else
                   mkdir ${STKEEPER_DATA_DIR}/cluster_backup
-                  {{- if not .Values.openshift.enabled }}
-                  chown stolon:stolon ${STKEEPER_DATA_DIR}/cluster_backup
-                  {{- end }}
+                  if [[ $(id -u) = 0 ]]
+                    then chown stolon:stolon ${STKEEPER_DATA_DIR}/cluster_backup
+                  fi
                   {{ include "data" . }} CLUSTER BACKUP DIRECTORY CREATED {{ include "logs" . }}
               fi
 
@@ -160,7 +174,11 @@ spec:
           command:
             - "/bin/bash"
             - "-ec"
-            - "{{ if not .Values.openshift.enabled }}exec gosu stolon {{ end }}stolon-keeper --uid ${POD_NAME##*keeper-}"
+            - |
+              if [[ $(id -u) = 0 ]]
+                then exec gosu stolon stolon-keeper --uid ${POD_NAME##*keeper-}
+                else stolon-keeper --uid ${POD_NAME##*keeper-}
+              fi
           env:
             - name: POD_NAME
               valueFrom:
@@ -192,8 +210,12 @@ spec:
             {{- include "stolon.data" . | indent 12 }}
             {{- include "psql.ctl" . | indent 12 }}
           ports:
-            - containerPort: 5432
-            - containerPort: 8080
+            - name: postgres
+              containerPort: 5432
+              protocol: TCP
+            - name: metrics
+              containerPort: 8080
+              protocol: TCP
           volumeMounts:
             - mountPath: /stolon-data
               name: {{ .Release.Name }}-data

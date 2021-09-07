@@ -44,7 +44,9 @@ spec:
             {{- include "psql.ctl" . | indent 12 }}
 
           ports:
-            - containerPort: 8080
+            - name: metrics
+              containerPort: 8080
+              protocol: TCP
 
           volumeMounts:
             {{- include "stolon.mounts" . | indent 12 }}

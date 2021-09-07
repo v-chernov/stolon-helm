@@ -2,9 +2,6 @@ postgres_replicas: 3
 proxy_replicas: 2
 sentinel_replicas: 2
 
-openshift:
-  enabled: false
-
 persistence:
   # storageClass: "-"
   size: 512Mi

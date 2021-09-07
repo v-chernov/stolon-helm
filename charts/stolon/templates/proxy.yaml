@@ -67,8 +67,12 @@ spec:
             {{- include "psql.ctl" . | indent 12 }}
 
           ports:
-            - containerPort: 5432
-            - containerPort: 8080
+            - name: postgres
+              containerPort: 5432
+              protocol: TCP
+            - name: metrics
+              containerPort: 8080
+              protocol: TCP
           readinessProbe:
             tcpSocket:
               port: 5432
